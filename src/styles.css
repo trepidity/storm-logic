@@ -1,0 +1,1069 @@
+/* ==========================================================================
+   Skywatch — design tokens
+   Sky colours are swapped by `body[data-sky]`, driven by the current WMO code.
+   ========================================================================== */
+
+:root {
+  --sky-top: #1b3a63;
+  --sky-mid: #2c5c8f;
+  --sky-bot: #4d86ba;
+  --ink: #f4f8ff;
+  --ink-soft: rgb(244 248 255 / 0.72);
+  --ink-faint: rgb(244 248 255 / 0.48);
+  --glass: rgb(255 255 255 / 0.1);
+  --glass-strong: rgb(255 255 255 / 0.16);
+  --stroke: rgb(255 255 255 / 0.18);
+  --stroke-soft: rgb(255 255 255 / 0.1);
+  --sun-glow: #ffd479;
+  --accent: #7fd4ff;
+  --shadow: 0 18px 48px rgb(6 16 32 / 0.34);
+  --radius-lg: 26px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
+  --maxw: 940px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --tone-rain: #6fc2ff;
+  --tone-snow: #cfe6ff;
+  --tone-thunder: #ffcf6b;
+  --tone-hail: #b9e8ff;
+  --tone-ice: #9fd8f5;
+  --tone-dry: rgb(255 255 255 / 0.55);
+}
+
+body[data-sky='clear'] {
+  --sky-top: #1d5fa8;
+  --sky-mid: #3d92d4;
+  --sky-bot: #8fd0f0;
+  --sun-glow: #ffd479;
+}
+body[data-sky='cloudy'] {
+  --sky-top: #3f5570;
+  --sky-mid: #63798f;
+  --sky-bot: #9aabbb;
+  --sun-glow: #ffe1a8;
+}
+body[data-sky='rain'] {
+  --sky-top: #2b3a4d;
+  --sky-mid: #405568;
+  --sky-bot: #6b8296;
+  --sun-glow: #cfe3f2;
+}
+body[data-sky='storm'] {
+  --sky-top: #221f33;
+  --sky-mid: #3b3550;
+  --sky-bot: #5d5570;
+  --sun-glow: #ffd166;
+}
+body[data-sky='snow'] {
+  --sky-top: #4a5a72;
+  --sky-mid: #74869e;
+  --sky-bot: #b9c8d8;
+  --sun-glow: #eaf4ff;
+}
+body[data-sky='fog'] {
+  --sky-top: #4c5560;
+  --sky-mid: #6d7680;
+  --sky-bot: #9aa2ab;
+  --sun-glow: #dfe5ea;
+}
+body[data-sky='night'] {
+  --sky-top: #0b1428;
+  --sky-mid: #16233f;
+  --sky-bot: #2a3d61;
+  --sun-glow: #8fb6ff;
+}
+body[data-sky='night-storm'] {
+  --sky-top: #0a0d1c;
+  --sky-mid: #191a30;
+  --sky-bot: #2e2c48;
+  --sun-glow: #ffd166;
+}
+
+/* ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--sky-top);
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 900ms var(--ease);
+}
+
+h1,
+h2,
+h3,
+p,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:where(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+/* ===== Shell ============================================================= */
+
+.app {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+
+.app__sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(120% 80% at 78% 4%, rgb(255 255 255 / 0.22), transparent 55%),
+    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 46%, var(--sky-bot) 100%);
+  transition:
+    background 900ms var(--ease),
+    opacity 900ms var(--ease);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100% - 32px, var(--maxw));
+  margin: 0 auto;
+  padding: 22px 0 6px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.brand__mark {
+  font-size: 1.35rem;
+}
+
+.brand__name {
+  font-size: 1.05rem;
+}
+
+.topbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.unit-toggle {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+}
+
+.unit-toggle button {
+  min-width: 46px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border-radius: 999px;
+  transition:
+    background 220ms var(--ease),
+    color 220ms var(--ease);
+}
+
+.unit-toggle button.is-active {
+  background: var(--glass-strong);
+  color: var(--ink);
+}
+
+.refresh {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  font-size: 1.05rem;
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 50%;
+  backdrop-filter: blur(14px);
+  transition: transform 400ms var(--ease);
+}
+
+.refresh:hover {
+  transform: rotate(140deg);
+}
+
+.layout {
+  flex: 1;
+  width: min(100% - 32px, var(--maxw));
+  margin: 0 auto;
+  padding: 12px 0 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== Search ============================================================ */
+
+.search {
+  position: relative;
+}
+
+.search__bar {
+  display: flex;
+  gap: 10px;
+}
+
+.search__field {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(16px);
+  transition: border-color 220ms var(--ease);
+}
+
+.search__field:focus-within {
+  border-color: var(--stroke);
+}
+
+.search__icon {
+  padding: 0 6px 0 16px;
+  font-size: 1.15rem;
+  color: var(--ink-faint);
+}
+
+.search__field input {
+  flex: 1;
+  padding: 13px 14px 13px 4px;
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  outline: none;
+}
+
+.search__field input::placeholder {
+  color: var(--ink-faint);
+}
+
+.search__spinner,
+.state__spinner {
+  width: 16px;
+  height: 16px;
+  margin-right: 14px;
+  border: 2px solid var(--stroke);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.search__geo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  font-size: 0.9rem;
+  font-weight: 550;
+  white-space: nowrap;
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(16px);
+  transition: background 220ms var(--ease);
+}
+
+.search__geo:hover {
+  background: var(--glass-strong);
+}
+
+.search__results {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  background: rgb(14 24 42 / 0.9);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px);
+}
+
+.search__results button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  text-align: left;
+  transition: background 160ms var(--ease);
+}
+
+.search__results button:hover {
+  background: var(--glass-strong);
+}
+
+.search__results small {
+  color: var(--ink-faint);
+  font-size: 0.82rem;
+}
+
+.search__pins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pin {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  transition:
+    background 200ms var(--ease),
+    color 200ms var(--ease);
+}
+
+.pin--active,
+.pin:hover {
+  color: var(--ink);
+  background: var(--glass-strong);
+}
+
+/* ===== Cards ============================================================= */
+
+.current,
+.forecast,
+.state {
+  padding: 24px;
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+}
+
+.current__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.current__place {
+  font-size: 1.3rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.current__meta {
+  margin-top: 2px;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+}
+
+.current__icon {
+  font-size: 3rem;
+  line-height: 1;
+  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.28));
+}
+
+.current__reading {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin: 10px 0 18px;
+}
+
+.current__temp {
+  display: flex;
+  align-items: flex-start;
+  font-size: clamp(4rem, 15vw, 6rem);
+  font-weight: 250;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+}
+
+.current__unit {
+  margin-top: 0.55em;
+  margin-left: 4px;
+  font-size: 0.22em;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink-faint);
+}
+
+.current__condition {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.current__feels,
+.current__range {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+/* ===== Badges ============================================================ */
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 550;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid var(--stroke-soft);
+  border-left: 3px solid var(--tone-dry);
+  border-radius: 10px;
+}
+
+.badges--lg .badge {
+  padding: 8px 14px;
+  font-size: 0.9rem;
+}
+
+.badges--sm .badge {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
+.badge__detail {
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge--rain {
+  border-left-color: var(--tone-rain);
+}
+.badge--snow {
+  border-left-color: var(--tone-snow);
+}
+.badge--thunder {
+  border-left-color: var(--tone-thunder);
+}
+.badge--hail {
+  border-left-color: var(--tone-hail);
+  background: rgb(185 232 255 / 0.14);
+}
+.badge--ice {
+  border-left-color: var(--tone-ice);
+}
+.badge--dry {
+  border-left-color: var(--tone-dry);
+  color: var(--ink-soft);
+}
+
+/* ===== Panels ============================================================ */
+
+.current__panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+}
+
+.panel--wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 720px) {
+  .current__panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel--wide {
+    grid-column: span 1;
+  }
+}
+
+.metric__label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+}
+
+/* ===== Cloud meter ======================================================= */
+
+.cloud {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cloud__ring {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  flex: none;
+}
+
+.cloud__ring svg {
+  width: 100%;
+  height: 100%;
+}
+
+.cloud__track,
+.cloud__value {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.cloud__track {
+  stroke: rgb(255 255 255 / 0.14);
+}
+
+.cloud__value {
+  stroke: var(--ink);
+  transition: stroke-dasharray 700ms var(--ease);
+}
+
+.cloud__percent {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+
+.cloud__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cloud__desc {
+  font-size: 1rem;
+  font-weight: 560;
+}
+
+/* ===== Wind ============================================================== */
+
+.wind {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.wind__dial {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  flex: none;
+}
+
+.wind__dial svg {
+  width: 100%;
+  height: 100%;
+}
+
+.wind__ring {
+  fill: rgb(255 255 255 / 0.05);
+  stroke: rgb(255 255 255 / 0.2);
+  stroke-width: 1.5;
+}
+
+.wind__tick {
+  stroke: rgb(255 255 255 / 0.4);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.wind__tick--minor {
+  stroke: rgb(255 255 255 / 0.2);
+  stroke-width: 1.5;
+}
+
+.wind__needle path {
+  fill: var(--accent);
+}
+
+.wind__needle {
+  transition: transform 800ms var(--ease);
+}
+
+.wind__hub {
+  fill: var(--ink);
+}
+
+.wind__cardinal {
+  position: absolute;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+
+.wind__cardinal--n {
+  top: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.wind__cardinal--s {
+  bottom: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.wind__cardinal--e {
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.wind__cardinal--w {
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.wind__speed {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wind__from,
+.wind__gusts {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+/* ===== Sun arc =========================================================== */
+
+.sun__svg {
+  width: 100%;
+  height: auto;
+  max-height: 116px;
+}
+
+.sun__path {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.34);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 5;
+}
+
+.sun__horizon {
+  stroke: rgb(255 255 255 / 0.2);
+  stroke-width: 1;
+}
+
+.sun__marker-core {
+  fill: var(--sun-glow);
+}
+
+.sun__marker-halo {
+  fill: var(--sun-glow);
+  opacity: 0.28;
+}
+
+.sun__marker {
+  transition: transform 900ms var(--ease);
+}
+
+.sun__times {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.sun__times > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sun__middle {
+  align-items: center;
+  text-align: center;
+}
+
+.sun__right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.sun__label {
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.sun__value {
+  font-size: 0.98rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sun__sunshine {
+  font-size: 0.76rem;
+  color: var(--ink-faint);
+}
+
+/* ===== Stats ============================================================= */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  background: var(--stroke-soft);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+}
+
+.stat {
+  padding: 12px 14px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.stat dt {
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+}
+
+.stat dd {
+  margin: 2px 0 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Forecast ========================================================== */
+
+.forecast__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 1.05rem;
+  font-weight: 620;
+}
+
+.forecast__hint {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+
+.day {
+  border-bottom: 1px solid var(--stroke-soft);
+}
+
+.day:last-child {
+  border-bottom: 0;
+}
+
+.day__summary {
+  display: grid;
+  grid-template-columns: minmax(96px, 1.15fr) 34px minmax(90px, 1fr) 46px minmax(140px, 1.6fr) 22px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 6px;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  transition: background 200ms var(--ease);
+}
+
+.day__summary:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.day__name {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.day__name strong {
+  font-weight: 600;
+}
+
+.day__name small {
+  font-size: 0.76rem;
+  color: var(--ink-faint);
+}
+
+.day__icon {
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.day__condition {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day__chance {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--tone-rain);
+  text-align: right;
+}
+
+.day__temps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.day__low {
+  color: var(--ink-faint);
+  min-width: 30px;
+  text-align: right;
+}
+
+.day__high {
+  font-weight: 600;
+  min-width: 30px;
+}
+
+.day__track {
+  position: relative;
+  flex: 1;
+  height: 5px;
+  background: rgb(255 255 255 / 0.14);
+  border-radius: 999px;
+}
+
+.day__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, var(--accent), var(--sun-glow));
+  border-radius: 999px;
+  transition:
+    left 600ms var(--ease),
+    width 600ms var(--ease);
+}
+
+.day__chevron {
+  color: var(--ink-faint);
+  text-align: center;
+  transition: transform 300ms var(--ease);
+}
+
+.day--open .day__chevron {
+  transform: rotate(180deg);
+}
+
+.day__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 6px 20px;
+}
+
+/* `display: flex` above outranks the UA stylesheet's [hidden] { display: none },
+   so collapsed days must be hidden explicitly. */
+.day__detail[hidden] {
+  display: none;
+}
+
+.day__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 12px 14px;
+  background: rgb(255 255 255 / 0.05);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+}
+
+.metric__value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric__note {
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 640px) {
+  .day__summary {
+    grid-template-columns: 1fr 30px 44px 96px 20px;
+    gap: 8px;
+  }
+
+  .day__condition {
+    display: none;
+  }
+
+  .day__track {
+    display: none;
+  }
+
+  .search__geo-text {
+    display: none;
+  }
+
+  .current,
+  .forecast {
+    padding: 18px;
+  }
+}
+
+/* ===== States ============================================================ */
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.state--error button {
+  padding: 8px 18px;
+  font-weight: 600;
+  background: var(--glass-strong);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+}
+
+.inline-error {
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  background: rgb(255 140 140 / 0.14);
+  border: 1px solid rgb(255 140 140 / 0.3);
+  border-radius: var(--radius-sm);
+}
+
+.footer {
+  width: min(100% - 32px, var(--maxw));
+  margin: 0 auto;
+  padding: 0 0 32px;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.footer__note {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
