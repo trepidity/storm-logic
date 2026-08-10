@@ -208,10 +208,12 @@ computed styles (tabs have a surface, the active tab is highlighted, the star si
 location name rather than wrapping under it, the radar map has height). Add to those when you add
 a new section.
 
-Dev-only and deliberately not dependencies:
+The browser checks use the locked development dependencies. Install Chromium once
+after installing packages (or set `CHROMIUM_PATH` to use a system-provided binary):
 
 ```bash
-npm i -D playwright pngjs
+npm ci
+npx playwright install chromium
 npm test          # summary + build + smoke + contrast + persistence + radar
 ```
 

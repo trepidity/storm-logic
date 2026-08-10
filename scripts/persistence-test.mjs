@@ -5,7 +5,7 @@
  * which is the whole point of the feature. Both Open-Meteo endpoints (forecast
  * and geocoding) are mocked, so this runs with no network.
  *
- * Dev-only. Requires: npm i -D playwright
+ * Dev-only. Requires: npm ci && npx playwright install chromium
  * Run: npm run build && node scripts/persistence-test.mjs
  */
 import { chromium } from 'playwright'
@@ -83,7 +83,7 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(PORT, r))
 
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
   args: ['--no-sandbox'],
 })
 

@@ -3,15 +3,17 @@
  * intercepts /api/forecast with a fixture in Open-Meteo's exact response shape
  * and asserts the UI renders, expands, and reports zero console errors.
  *
- * Run: npx playwright ... (dev-only; not part of the Netlify build)
+ * Run: npm run build && npm run test:smoke
  */
 import { chromium } from 'playwright'
 import { createServer } from 'node:http'
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { extname, join, normalize } from 'node:path'
 
 const ROOT = new URL('../dist/', import.meta.url).pathname
 const PORT = 4173
+const SCREENSHOT_DIR = await mkdtemp(join(tmpdir(), 'stormlogic-smoke-'))
 
 const MIME = {
   '.html': 'text/html',
@@ -118,10 +120,8 @@ await new Promise((resolve) => server.listen(PORT, resolve))
 
 // ---- run -----------------------------------------------------------------
 
-// The container ships a pinned Chromium that may not match the npm package's
-// expected build number, so point at it explicitly instead of downloading.
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
   args: ['--no-sandbox'],
 })
 const failures = []
@@ -194,7 +194,7 @@ for (const [name, viewport] of [
   await page.waitForTimeout(250)
   const snowDetail = await page.locator('.forecast .day').nth(4).locator('.day__detail').innerText()
 
-  await page.screenshot({ path: `/home/claude/shots/${name}.png`, fullPage: true })
+  await page.screenshot({ path: join(SCREENSHOT_DIR, `${name}.png`), fullPage: true })
 
   console.log(`\n=== ${name} ===`)
   console.log(JSON.stringify(report, null, 1))

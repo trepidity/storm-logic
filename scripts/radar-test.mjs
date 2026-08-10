@@ -3,7 +3,7 @@
  *
  * RainViewer and CARTO are both mocked, so this runs with no network.
  *
- * Dev-only. Requires: npm i -D playwright
+ * Dev-only. Requires: npm ci && npx playwright install chromium
  * Run: npm run build && node scripts/radar-test.mjs
  */
 import { chromium } from 'playwright'
@@ -122,7 +122,7 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(PORT, r))
 
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
   args: ['--no-sandbox'],
 })
 const page = await browser.newPage({ viewport: { width: 1180, height: 1000 } })

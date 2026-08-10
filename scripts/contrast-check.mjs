@@ -10,7 +10,7 @@
  * all text set to `color: transparent` — and take the average pixel of the
  * second as the true background behind that text.
  *
- * Dev-only. Requires: npm i -D playwright pngjs
+ * Dev-only. Requires: npm ci && npx playwright install chromium
  * Run: node scripts/contrast-check.mjs
  */
 import { chromium } from 'playwright'
@@ -215,7 +215,7 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(PORT, r))
 
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
   args: ['--no-sandbox'],
 })
 
