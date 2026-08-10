@@ -1,4 +1,4 @@
-import { describeCode, iconFor } from '../lib/weatherCodes.js'
+import { summariseDay } from '../lib/daySummary.js'
 import {
   formatTemp,
   formatDayName,
@@ -23,8 +23,11 @@ function rangeStyle(day, scaleMin, scaleMax) {
 }
 
 export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded, onToggle }) {
-  const condition = describeCode(day.weatherCode)
+  // Derived from the day's numbers, not from Open-Meteo's daily weather_code —
+  // see src/lib/daySummary.js for why the raw code cannot be trusted here.
+  const summary = summariseDay(day)
   const rainTotal = (day.rainSum || 0) + (day.showersSum || 0)
+  const cloud = Number.isFinite(day.cloudCoverDay) ? day.cloudCoverDay : day.cloudCoverMean
   const panelId = `day-detail-${index}`
 
   return (
@@ -42,10 +45,10 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
         </span>
 
         <span className="day__icon" aria-hidden="true">
-          {iconFor(day.weatherCode, true)}
+          {summary.icon}
         </span>
 
-        <span className="day__condition">{condition.short}</span>
+        <span className="day__condition">{summary.short}</span>
 
         <span className="day__chance" title="Chance of precipitation">
           {Number.isFinite(day.precipChance) && day.precipChance > 0 ? `${day.precipChance}%` : '—'}
@@ -72,15 +75,14 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
           snow={day.snowSum}
           units={units}
           size="sm"
+          precip={summary.precip}
         />
 
         <div className="day__grid">
           <div className="metric">
             <span className="metric__label">Cloud cover</span>
-            <span className="metric__value">
-              {Number.isFinite(day.cloudCoverMean) ? `${day.cloudCoverMean}%` : '—'}
-            </span>
-            <span className="metric__note">{cloudLabel(day.cloudCoverMean)}</span>
+            <span className="metric__value">{Number.isFinite(cloud) ? `${cloud}%` : '—'}</span>
+            <span className="metric__note">{cloudLabel(cloud)} · daylight avg</span>
           </div>
 
           <div className="metric">
@@ -105,7 +107,7 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
             <span className="metric__label">Snow</span>
             <span className="metric__value">{formatPrecip(day.snowSum, units) ?? 'None'}</span>
             <span className="metric__note">
-              {describeCode(day.weatherCode).hail ? 'Hail possible in storms' : 'No hail signal'}
+              {summary.hail ? 'Hail possible in storms' : 'No hail signal'}
             </span>
           </div>
 

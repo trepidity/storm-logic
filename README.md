@@ -9,12 +9,34 @@ account, no billing setup.
 | --- | --- | --- |
 | Current temperature | `current.temperature_2m` | Plus apparent temperature, humidity, pressure |
 | 10-day forecast | `daily.*`, `forecast_days=10` | Open-Meteo supports up to 16 if you want more |
-| Clouds | `current.cloud_cover`, hourly `cloud_cover` | **Daily mean is computed client-side** — Open-Meteo has no daily cloud variable |
+| Clouds | `current.cloud_cover`, hourly `cloud_cover` | **Daily mean is computed client-side** — Open-Meteo has no daily cloud variable. Averaged over daylight hours only |
 | Sunrise / sunset | `daily.sunrise`, `daily.sunset` | Plus `daylight_duration` and `sunshine_duration` |
 | Rain | `rain_sum` + `showers_sum` | Split from total precipitation so rain and snow don't get conflated |
 | Snow | `daily.snowfall_sum` | |
 | Hail | WMO codes **96** and **99** only | See the caveat below |
 | Wind | `wind_speed_10m_max`, `wind_gusts_10m_max`, `wind_direction_10m_dominant` | Rendered as a compass dial |
+
+### Daily conditions are derived, not reported
+
+**Do not label a day with `daily.weather_code`.** Open-Meteo returns the most *severe* hourly code
+of the day, not a representative one. One hour carrying code 51 brands a whole day "Drizzle" even
+at 2% probability with zero accumulation — and the same aggregation makes days read "Overcast"
+when their mean cloud cover is 45%.
+
+`src/lib/daySummary.js` decides the label from the numbers instead. The weather code is used only
+for the *type* of precipitation (rain vs snow vs thunder); whether to mention precipitation at all
+comes from probability, accumulation and duration:
+
+| Condition | Result |
+| --- | --- |
+| ≥40% probability **and** something forecast to fall | Named plainly — "Drizzle", "Heavy rain" |
+| ≥20% (≥15% for snow) with corroboration | Hedged — "Chance of rain", "Isolated storms" |
+| Otherwise | Described by daylight cloud cover — "Partly cloudy" |
+
+Probability alone is never enough; `precipitation_sum > 0` or `precipitation_hours >= 1` has to
+back it up, or a noisy 50% with nothing forecast to fall would still read as rain.
+
+`scripts/summary-test.mjs` covers this — 12 cases including the original 2%-drizzle report.
 
 ### The hail caveat
 
@@ -80,9 +102,12 @@ src/
   lib/
     api.js            fetch + reshape Open-Meteo's parallel arrays into per-day objects
     weatherCodes.js   WMO code table; the only place hail/snow/rain classification happens
+    daySummary.js     derives each day's label from its numbers, not its weather code
+    storage.js        localStorage wrapper; saved places, recents, last location, units
     format.js         units, compass points, local-time parsing
   components/
-    LocationSearch    geocoding search, geolocation, pinned places
+    LocationSearch    geocoding search + geolocation
+    SavedPlaces       saved + recent location chips
     CurrentCard       big reading, badges, panels, stats
     CloudMeter        cloud cover ring
     WindDial          compass with needle + gusts
@@ -90,11 +115,8 @@ src/
     Forecast/DayRow   10-day list with expandable detail
 netlify/functions/
   forecast.mjs        cached upstream proxy
-  lib/
-    storage.js        localStorage wrapper; saved places, recents, last location, units
-  components/
-    SavedPlaces       saved + recent location chips
 scripts/
+  summary-test.mjs     day-condition logic (pure, no browser)
   smoke-test.mjs       renders the built app against a fixture
   contrast-check.mjs   WCAG audit of every sky theme
   persistence-test.mjs saved locations, recents, restore-on-reload
@@ -126,7 +148,7 @@ Dev-only and deliberately not dependencies:
 
 ```bash
 npm i -D playwright pngjs
-npm test          # build + all three
+npm test          # summary + build + smoke + contrast + persistence
 ```
 
 `contrast-check.mjs` samples **rendered pixels**, not declared colours. Every surface here is

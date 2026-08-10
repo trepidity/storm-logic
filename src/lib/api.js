@@ -93,8 +93,26 @@ async function getJson(url, signal) {
   return res.json()
 }
 
-/** Average the hourly cloud cover series into one value per forecast day. */
-function summariseCloudCover(hourly) {
+/**
+ * Average the hourly cloud cover series into per-day values.
+ *
+ * Two means are produced: the full 24h average, and a daylight-only average
+ * bounded by that day's sunrise and sunset. The daylight figure is what gets
+ * shown, because overnight cloud isn't what anyone means when they ask how
+ * cloudy a day will be.
+ */
+function summariseCloudCover(hourly, daily) {
+  const sunriseHour = new Map()
+  const sunsetHour = new Map()
+  const dates = daily?.time ?? []
+
+  dates.forEach((date, i) => {
+    const rise = daily?.sunrise?.[i]
+    const set = daily?.sunset?.[i]
+    if (typeof rise === 'string') sunriseHour.set(date, Number(rise.slice(11, 13)))
+    if (typeof set === 'string') sunsetHour.set(date, Number(set.slice(11, 13)))
+  })
+
   const byDate = new Map()
   const times = hourly?.time ?? []
   const values = hourly?.cloud_cover ?? []
@@ -102,16 +120,34 @@ function summariseCloudCover(hourly) {
   for (let i = 0; i < times.length; i += 1) {
     const value = values[i]
     if (!Number.isFinite(value)) continue
-    const date = times[i].slice(0, 10)
-    const bucket = byDate.get(date) ?? { sum: 0, count: 0 }
-    bucket.sum += value
-    bucket.count += 1
+
+    const stamp = times[i]
+    const date = stamp.slice(0, 10)
+    const hour = Number(stamp.slice(11, 13))
+    const bucket = byDate.get(date) ?? { allSum: 0, allCount: 0, daySum: 0, dayCount: 0 }
+
+    bucket.allSum += value
+    bucket.allCount += 1
+
+    const rise = sunriseHour.get(date)
+    const set = sunsetHour.get(date)
+    // Polar day/night and missing sun times fall back to the 24h window.
+    const inDaylight =
+      !Number.isFinite(rise) || !Number.isFinite(set) || (hour >= rise && hour <= set)
+    if (inDaylight) {
+      bucket.daySum += value
+      bucket.dayCount += 1
+    }
+
     byDate.set(date, bucket)
   }
 
   const means = new Map()
-  for (const [date, { sum, count }] of byDate) {
-    means.set(date, Math.round(sum / count))
+  for (const [date, b] of byDate) {
+    means.set(date, {
+      all: b.allCount ? Math.round(b.allSum / b.allCount) : null,
+      day: b.dayCount ? Math.round(b.daySum / b.dayCount) : null,
+    })
   }
   return means
 }
@@ -119,7 +155,7 @@ function summariseCloudCover(hourly) {
 /** Reshape the parallel-array payload into one object per day. */
 function normalise(payload) {
   const daily = payload.daily ?? {}
-  const cloudByDate = summariseCloudCover(payload.hourly)
+  const cloudByDate = summariseCloudCover(payload.hourly, daily)
   const pick = (key, i) => daily[key]?.[i] ?? null
 
   const days = (daily.time ?? []).map((date, i) => ({
@@ -143,7 +179,8 @@ function normalise(payload) {
     windMax: pick('wind_speed_10m_max', i),
     gustMax: pick('wind_gusts_10m_max', i),
     windDirection: pick('wind_direction_10m_dominant', i),
-    cloudCoverMean: cloudByDate.get(date) ?? null,
+    cloudCoverMean: cloudByDate.get(date)?.all ?? null,
+    cloudCoverDay: cloudByDate.get(date)?.day ?? cloudByDate.get(date)?.all ?? null,
   }))
 
   const c = payload.current ?? {}
