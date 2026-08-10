@@ -1,5 +1,6 @@
 import { describeCode, iconFor } from '../lib/weatherCodes.js'
 import { formatTemp, formatClock, formatPrecipTotal, parseLocalIso } from '../lib/format.js'
+import { precipTiming } from '../lib/precipTiming.js'
 import ConditionBadges from './ConditionBadges.jsx'
 import CloudMeter from './CloudMeter.jsx'
 import WindDial from './WindDial.jsx'
@@ -19,6 +20,7 @@ export default function CurrentCard({
 }) {
   const condition = describeCode(current.weatherCode)
   const nowMinutes = parseLocalIso(current.time)?.minutesOfDay ?? null
+  const timing = hours.length ? precipTiming(hours) : null
 
   return (
     <section className="current" aria-label="Current conditions">
@@ -73,6 +75,12 @@ export default function CurrentCard({
         units={units}
         size="lg"
       />
+
+      {timing ? (
+        <p className="current__precip-timing" role="status">
+          {timing.label}
+        </p>
+      ) : null}
 
       <div className="current__panels">
         <div className="panel">

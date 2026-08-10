@@ -51,6 +51,7 @@ const TARGETS = [
   ['.current__meta', 'location timezone line'],
   ['.current__feels', 'feels-like'],
   ['.current__range', 'high/low'],
+  ['.current__precip-timing', 'precip timing'],
   ['.metric__label', 'panel caption'],
   ['.cloud__desc', 'cloud description'],
   ['.wind__from', 'wind direction'],
@@ -98,6 +99,18 @@ const ALERT_TARGETS = [
   ['.alert__details summary', 'alert details control'],
 ]
 
+// Air is likewise lazy-tab content: measure its value, model-time label, and
+// attribution after opening the real surface rather than assuming Forecast's
+// glass palette covers it.
+const AIR_TARGETS = [
+  ['.air__eyebrow', 'air provider label'],
+  ['.air__scale', 'air scale'],
+  ['.air__value', 'air value'],
+  ['.air__category', 'air category'],
+  ['.air__time', 'air valid time'],
+  ['.air__note', 'air attribution'],
+]
+
 const RADAR_INDEX = {
   version: '2.0',
   host: 'https://tilecache.rainviewer.com',
@@ -130,6 +143,13 @@ const ALERTS = {
       },
     },
   ],
+}
+
+const AIR = {
+  latitude: 41.88,
+  longitude: -87.63,
+  timezone: 'America/Chicago',
+  current: { time: '2026-08-09T14:00', interval: 3600, us_aqi: 42 },
 }
 
 // ---- colour maths ---------------------------------------------------------
@@ -178,6 +198,7 @@ function makeFixture(code, isDay) {
   const hourlyTemp = []
   const hourlyChance = []
   const hourlyCode = []
+  const hourlyPrecip = []
   for (const d of dates) {
     for (let h = 0; h < 24; h += 1) {
       hourlyTime.push(`${d}T${String(h).padStart(2, '0')}:00`)
@@ -185,6 +206,9 @@ function makeFixture(code, isDay) {
       hourlyTemp.push(60 + (h % 12) * 2)
       hourlyChance.push((h * 7) % 60)
       hourlyCode.push(code)
+      // Current hour is wet and the following hour is dry, ensuring the
+      // user-facing timing line is present for the pixel check.
+      hourlyPrecip.push(h === 14 ? 0.01 : 0)
     }
   }
   const fill = (v) => dates.map(() => v)
@@ -236,6 +260,7 @@ function makeFixture(code, isDay) {
       cloud_cover: hourlyCloud,
       temperature_2m: hourlyTemp,
       precipitation_probability: hourlyChance,
+      precipitation: hourlyPrecip,
       weather_code: hourlyCode,
     },
   }
@@ -284,6 +309,9 @@ for (const theme of themesToCheck) {
   )
   await page.route('**/api/alerts*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALERTS) }),
+  )
+  await page.route('**/api/air*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(AIR) }),
   )
   // Regexes, not globs: CARTO serves from a.basemaps.cartocdn.com and friends.
   await page.route(/api\.rainviewer\.com/, (r) =>
@@ -335,6 +363,9 @@ for (const theme of themesToCheck) {
   }
 
   for (const [selector, label] of TARGETS) await measure(selector, label)
+  if (!(await page.locator('.current__precip-timing').count())) {
+    failures.push(`${theme.name} · precip timing: fixture did not render the timing surface`)
+  }
 
   // Second pass with the Radar tab open — its chrome only exists there.
   await page.locator('.tabs button', { hasText: 'Radar' }).click()
@@ -345,6 +376,10 @@ for (const theme of themesToCheck) {
   await page.locator('.tabs button', { hasText: 'Alerts' }).click()
   await page.waitForSelector('.alert', { timeout: 10000 })
   for (const [selector, label] of ALERT_TARGETS) await measure(selector, label)
+
+  await page.locator('.tabs button', { hasText: 'Air' }).click()
+  await page.waitForSelector('.air__reading', { timeout: 10000 })
+  for (const [selector, label] of AIR_TARGETS) await measure(selector, label)
 
   const worst = [...rows].sort((a, b) => a.ratio - b.ratio).slice(0, 3)
   console.log(

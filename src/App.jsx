@@ -29,6 +29,7 @@ import Forecast from './components/Forecast.jsx'
 // opened; the forecast view is what nearly every visit is actually for.
 const RadarPanel = lazy(() => import('./components/RadarPanel.jsx'))
 const AlertsPanel = lazy(() => import('./components/AlertsPanel.jsx'))
+const AirPanel = lazy(() => import('./components/AirPanel.jsx'))
 
 const DEFAULT_PLACE = normalisePlace({
   name: 'Chicago',
@@ -215,6 +216,7 @@ export default function App() {
             ['forecast', 'Forecast'],
             ['radar', 'Radar'],
             ['alerts', 'Alerts'],
+            ['air', 'Air'],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -334,6 +336,21 @@ export default function App() {
               }
             >
               <AlertsPanel key={place.key} place={place} />
+            </Suspense>
+          </div>
+        ) : null}
+
+        {tab === 'air' && place ? (
+          <div role="tabpanel" id="panel-air" aria-labelledby="tab-air">
+            <Suspense
+              fallback={
+                <div className="state state--loading">
+                  <span className="state__spinner" aria-hidden="true" />
+                  <p>Loading air quality…</p>
+                </div>
+              }
+            >
+              <AirPanel key={place.key} place={place} />
             </Suspense>
           </div>
         ) : null}

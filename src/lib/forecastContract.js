@@ -21,7 +21,7 @@ export const FORECAST_DAYS = 11
 
 /**
  * One past calendar day of hourly data so we can sum precipitation over the
- * rolling last 24 hours ending at "now". Daily series also gains that day —
+ * rolling last 24 hours ending at the latest completed hourly boundary. Daily series also gains that day —
  * api.js drops it so days[0] remains today.
  */
 export const PAST_DAYS = 1

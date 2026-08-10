@@ -3,6 +3,7 @@ import {
   FORECAST_DAYS,
   buildUpstreamForecastUrl,
 } from './forecastContract.js'
+import { normaliseCurrentAirQuality } from './usAqi.js'
 
 export { FORECAST_DAYS }
 
@@ -14,6 +15,7 @@ const OPEN_METEO_GEOCODE = 'https://geocoding-api.open-meteo.com/v1/search'
 // keyless and CORS-friendly; used solely to name a geolocated fix.
 const REVERSE_GEOCODE = 'https://api.bigdatacloud.net/data/reverse-geocode-client'
 const NWS_ACTIVE_ALERTS = 'https://api.weather.gov/alerts/active'
+const OPEN_METEO_AIR = 'https://air-quality-api.open-meteo.com/v1/air-quality'
 // A city name is helpful, but never worth holding the location flow hostage.
 const REVERSE_GEOCODE_TIMEOUT_MS = 2_000
 
@@ -150,6 +152,19 @@ function summariseCloudCover(hourly, daily) {
 export const HOURLY_WINDOW = 24
 
 /**
+ * Convert Open-Meteo's offset-free local hourly stamp to a comparable wall-clock
+ * value. `timezone=auto` deliberately gives local times, so validate continuity
+ * without letting the browser's own timezone reinterpret them.
+ */
+function localHourlyStamp(time) {
+  const match = typeof time === 'string' && time.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):00$/)
+  if (!match) return null
+
+  const [, year, month, day, hour] = match
+  return Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour))
+}
+
+/**
  * One hourly column. Day/night comes from that date's sunrise/sunset rather
  * than requesting hourly `is_day` — one fewer variable that can invalidate the
  * whole request, and the sun times are already on hand.
@@ -171,6 +186,8 @@ function hourEntry(hourly, index, sunByDate, { isNow = false } = {}) {
     temperature: hourly.temperature_2m?.[index] ?? null,
     weatherCode: hourly.weather_code?.[index] ?? null,
     precipChance: hourly.precipitation_probability?.[index] ?? null,
+    // Already requested for last-24h totals; retained for precip timing / wet hours.
+    precipitation: hourly.precipitation?.[index] ?? null,
     cloudCover: hourly.cloud_cover?.[index] ?? null,
     isDay: hour >= rise && hour <= set,
   }
@@ -228,6 +245,11 @@ function buildNextHours(payload, days) {
  * Sum hourly precipitation ending at the current hour (inclusive).
  * Each Open-Meteo hourly `precipitation` value is the preceding-hour total.
  * Requires past_days on the request so enough history exists before "now".
+ *
+ * Integrity: only returns a number when the full lookback window is present
+ * with a finite precip value in every consecutive hour. Incomplete history, gaps, or
+ * non-finite slots yield null — never a partial sum presented as a full day.
+ * A complete window of zeros is real dry weather and returns 0.
  */
 export function sumPrecipLast24h(payload, lookback = PRECIP_LOOKBACK_HOURS) {
   const times = payload?.hourly?.time ?? []
@@ -242,16 +264,29 @@ export function sumPrecipLast24h(payload, lookback = PRECIP_LOOKBACK_HOURS) {
   }
   if (end < 0) return null
 
-  const start = Math.max(0, end - (lookback - 1))
+  // Need lookback consecutive hours ending at end; do not clamp to 0.
+  const start = end - (lookback - 1)
+  if (start < 0 || end - start + 1 < lookback) return null
+
   let sum = 0
-  let counted = 0
+  let previousStamp = null
   for (let i = start; i <= end; i += 1) {
+    const stamp = localHourlyStamp(times[i])
     const value = values[i]
-    if (!Number.isFinite(value)) continue
+    // A numeric slot without its matching hourly timestamp would silently
+    // substitute an adjacent hour into the total. Prefer unavailable to a
+    // plausible but dishonest 24-hour value.
+    if (
+      !Number.isFinite(value) ||
+      stamp == null ||
+      (previousStamp != null && stamp - previousStamp !== 60 * 60 * 1000)
+    ) {
+      return null
+    }
+    previousStamp = stamp
     sum += value
-    counted += 1
   }
-  return counted > 0 ? sum : null
+  return sum
 }
 
 /**
@@ -412,6 +447,46 @@ export async function fetchAlerts({ latitude, longitude }, signal) {
     }
     throw err
   }
+}
+
+/**
+ * Current US AQI for the selected coordinates. Stays out of the forecast
+ * payload (lazy Air tab only). Dev hits Open-Meteo AQ directly; production
+ * uses the cached /api/air proxy.
+ *
+ * Returns null when the upstream payload has no usable us_aqi value (no-data).
+ * Throws on transport/service failures so the panel can show an error state.
+ *
+ * @param {{ latitude: number, longitude: number }} opts
+ * @param {AbortSignal} [signal]
+ * @param {{ mode?: 'direct' | 'proxy' }} [options]
+ */
+export function buildAirQualityUrl({ latitude, longitude }, options = {}) {
+  const mode =
+    options.mode ??
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV
+      ? 'direct'
+      : 'proxy')
+
+  if (mode === 'direct') {
+    const params = new URLSearchParams({
+      latitude: latitude.toFixed(4),
+      longitude: longitude.toFixed(4),
+      current: 'us_aqi',
+      timezone: 'auto',
+    })
+    return `${OPEN_METEO_AIR}?${params}`
+  }
+
+  return `/api/air?${new URLSearchParams({
+    lat: latitude.toFixed(4),
+    lon: longitude.toFixed(4),
+  })}`
+}
+
+export async function fetchAirQuality({ latitude, longitude }, signal, options = {}) {
+  const payload = await getJson(buildAirQualityUrl({ latitude, longitude }, options), signal)
+  return normaliseCurrentAirQuality(payload)
 }
 
 export async function searchPlaces(query, signal) {

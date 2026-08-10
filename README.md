@@ -8,7 +8,7 @@ account, no billing setup.
 | Requirement | Source | Notes |
 | --- | --- | --- |
 | Current temperature | `current.temperature_2m` | Plus apparent temperature, humidity, pressure |
-| Last 24h precip | hourly `precipitation` + `past_days=1` | Client sum of the 24 preceding-hour totals ending at now |
+| Last 24h precip | hourly `precipitation` + `past_days=1` | Client sum of the 24 preceding-hour totals ending at the latest completed hourly boundary (complete, contiguous lookback only; else unavailable) |
 | 10-day forecast | `daily.*`, `forecast_days=11` | Starts at **tomorrow** — see below. Open-Meteo supports up to 16 |
 | Clouds | `current.cloud_cover`, hourly `cloud_cover` | **Daily mean is computed client-side** — Open-Meteo has no daily cloud variable. Averaged over daylight hours only |
 | Sunrise / sunset | `daily.sunrise`, `daily.sunset` | Plus `daylight_duration` and `sunshine_duration` |
@@ -19,6 +19,8 @@ account, no billing setup.
 | Next 24 hours | hourly `temperature_2m`, `weather_code`, `precipitation_probability` | Scrollable strip with a temperature trend line |
 | Radar | **RainViewer** (not Open-Meteo) | Separate tab; see below |
 | Active alerts | **NWS** `/alerts/active` | Dedicated, lazy U.S.-coverage tab; see below |
+| Air quality | Open-Meteo AQ `current.us_aqi` | Lazy **Air** tab; **US AQI** scale globally — see below |
+| Precip timing | next-24h hourly series | “Starting ~3pm” / “Ending ~6pm” on the current card |
 
 Day/night for the hourly icons is derived from each date's sunrise/sunset rather than requesting
 the hourly `is_day` field — one fewer variable that can invalidate the whole request, and the sun
@@ -77,9 +79,9 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-In dev the browser calls Open-Meteo and NWS directly. In a production build the
-same requests go through `/api/forecast` and `/api/alerts`, the Netlify functions
-— see below.
+In dev the browser calls Open-Meteo (forecast + air quality) and NWS directly.
+In a production build forecast, alerts, and air go through `/api/forecast`,
+`/api/alerts`, and `/api/air` — see below.
 
 ## Deploying to Netlify
 
@@ -123,6 +125,32 @@ NWS asks alert clients not to poll more often than every 30 seconds, so that
 short cache is both the freshness boundary and a courtesy to the upstream
 service.
 
+## Air quality
+
+Air quality stays out of Forecast entirely. Opening the lazy **Air** tab loads
+current **US AQI** for the selected coordinates from the
+[Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api)
+(`current=us_aqi`). The scale label in the UI is exactly **`US AQI`**, used
+**globally** — not European AQI and not local national indices. EPA-style bands:
+
+| US AQI | Category |
+| --- | --- |
+| 0–50 | Good |
+| 51–100 | Moderate |
+| 101–150 | Unhealthy for Sensitive Groups |
+| 151–200 | Unhealthy |
+| 201–300 | Very Unhealthy |
+| 301+ | Hazardous |
+
+Initial scope is the current index value, category band, model-valid time, and
+explicit no-data / service-error states. Pollen, multi-pollutant charts, and
+European AQI are out of scope.
+
+`netlify/functions/air.mjs` caches like the forecast proxy
+(`s-maxage=900`, `stale-while-revalidate=3600`) with coordinates rounded to two
+decimals. Dev calls `air-quality-api.open-meteo.com` directly; production uses
+`/api/air`.
+
 ## Licensing — read before shipping
 
 Open-Meteo's free tier is **non-commercial**. Data is CC BY 4.0, so the attribution in the footer is
@@ -135,31 +163,39 @@ required, not decorative. If this becomes a commercial product, you need a paid 
 src/
   lib/
     forecastContract.js  Open-Meteo request shape (vars, days, units) — shared by browser + proxy
-    api.js               fetch + reshape Open-Meteo's parallel arrays into per-day objects
+    api.js               fetch + reshape forecast; alerts + air quality clients
     weatherCodes.js      WMO code table; the only place hail/snow/rain classification happens
     daySummary.js        derives each day's label from its numbers, not its weather code
+    precipTiming.js      next-24h precip start/end labels from existing hourly series
+    usAqi.js             US AQI category bands + current-payload normalise
     storage.js           localStorage wrapper; saved places, recents, last location, units
     radar.js             RainViewer frame index + tile URL construction
     format.js            units, compass points, local-time parsing
   components/
     LocationSearch    geocoding search + geolocation
     SavedPlaces       saved + recent location chips
-    CurrentCard       big reading, badges, panels, stats
+    CurrentCard       big reading, badges, precip timing, panels, stats
     CloudMeter        cloud cover ring
     WindDial          compass with needle + gusts
     SunArc            compact sunrise→sunset track with current position
     HourlyStrip       hourly columns + temperature trend (next-24 or a full day)
     RadarPanel        animated RainViewer radar (lazy-loaded)
     AlertsPanel       active NWS alerts (lazy-loaded, U.S. coverage)
+    AirPanel          current US AQI (lazy-loaded, global scale)
     Forecast/DayRow   10-day list with expandable detail + that day's hourly strip
 netlify/functions/
   forecast.mjs        cached upstream proxy (imports forecastContract — do not re-list vars here)
   alerts.mjs          short-lived cached NWS active-alerts proxy
+  air.mjs             cached Open-Meteo air-quality proxy (US AQI current)
 scripts/
   summary-test.mjs            day-condition logic (pure, no browser)
   forecast-contract-test.mjs  captures real dev + proxy upstream URLs vs golden fields
   reverse-geocode-test.mjs    names a GPS fix; falls back to "My location" on failure
+  precip-lookback-test.mjs    last-24h precip sum (complete lookback only)
+  precip-timing-test.mjs      next-24h precip start/end labels
   alerts-proxy-test.mjs       NWS point/cache/coverage behaviour through the real handler
+  us-aqi-test.mjs             US AQI bands + normalise (pure)
+  air-proxy-test.mjs          air-quality proxy URL/cache/validation
   smoke-test.mjs              renders the built app against a fixture
   contrast-check.mjs          WCAG audit of every sky theme
   persistence-test.mjs        saved locations, recents, restore-on-reload
@@ -288,7 +324,7 @@ sky doesn't need darkening — but the night gradient still reaches `#2a3d61` at
 stacked translucent white layers lifted panel backgrounds to mid-slate, dropping accent-coloured
 text to 3.1:1. **Glass is tinted dark on every theme, without exception.**
 
-320 checks across 8 themes, including separate passes with the Radar and Alerts tabs open; every measured role meets AA.
+376 checks across 8 themes, including separate passes with the Radar, Alerts, and Air tabs open; every measured role meets AA.
 
 One harness bug worth knowing: measuring injects `color: transparent` and removes it moments later,
 so any element with a CSS colour *transition* gets read mid-animation at a fractional alpha and
@@ -315,10 +351,20 @@ still uses the separate rolling **next 24 hours** window from `data.hours`.
 ## Last 24h precipitation
 
 `past_days=1` and hourly `precipitation` are on the shared forecast contract.
-`sumPrecipLast24h` totals the 24 preceding-hour sums ending at the current hour
-and the current card shows it as **Last 24h**. Because `past_days` also prepends
-yesterday to `daily.time`, normalise drops any date before today so `days[0]`
-stays the card/list anchor.
+`sumPrecipLast24h` totals the 24 preceding-hour sums ending at the latest
+completed hourly boundary (complete lookback only) and the current card shows it
+as **Last 24h**. If fewer than 24 finite, consecutive hourly values are available
+in that window, the total is treated as unavailable (`—`) rather than a partial
+sum. A complete window of zeros is shown as dry weather (`0.00 in` / `0.0 mm`).
+Because `past_days` also prepends yesterday to `daily.time`, normalise drops any
+date before today so `days[0]` stays the card/list anchor.
+
+## Precip timing
+
+The current card derives a short next-24h timing line from the same hourly
+series already used for the strip: amount `> 0` marks a wet hour, else
+`precipChance >= 40`. Labels such as “Rain starting ~3pm” / “Rain ending ~6pm” /
+“No precip expected next 24h” — no extra API fields.
 
 ## Possible next steps
 
