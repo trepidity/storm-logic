@@ -85,7 +85,9 @@ export default async function handler(request) {
     daily: DAILY_VARS,
     hourly: HOURLY_VARS,
     timezone: 'auto',
-    forecast_days: '10',
+    // 11, not 10: the UI drops today from the list (the current-conditions
+    // card covers it), so one extra keeps ten days showing ahead.
+    forecast_days: '11',
     ...units,
   }).toString()
 

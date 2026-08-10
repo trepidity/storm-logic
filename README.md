@@ -8,7 +8,7 @@ account, no billing setup.
 | Requirement | Source | Notes |
 | --- | --- | --- |
 | Current temperature | `current.temperature_2m` | Plus apparent temperature, humidity, pressure |
-| 10-day forecast | `daily.*`, `forecast_days=10` | Open-Meteo supports up to 16 if you want more |
+| 10-day forecast | `daily.*`, `forecast_days=11` | Starts at **tomorrow** — see below. Open-Meteo supports up to 16 |
 | Clouds | `current.cloud_cover`, hourly `cloud_cover` | **Daily mean is computed client-side** — Open-Meteo has no daily cloud variable. Averaged over daylight hours only |
 | Sunrise / sunset | `daily.sunrise`, `daily.sunset` | Plus `daylight_duration` and `sunshine_duration` |
 | Rain | `rain_sum` + `showers_sum` | Split from total precipitation so rain and snow don't get conflated |
@@ -21,6 +21,15 @@ account, no billing setup.
 Day/night for the hourly icons is derived from each date's sunrise/sunset rather than requesting
 the hourly `is_day` field — one fewer variable that can invalidate the whole request, and the sun
 times are already on hand.
+
+### The list starts at tomorrow
+
+`forecast_days` is **11, not 10**. The current-conditions card already carries today's high, low,
+sun times, UV and rain chance, so a "Today" row in the list below duplicated it. `Forecast` drops
+`days[0]` and the extra requested day keeps a full ten showing ahead.
+
+`days[0]` is still fetched and still feeds the card — don't remove it from the request. `DayRow`
+receives `index + 1` so day naming still reads from today, making the first row "Tomorrow".
 
 ### Daily conditions are derived, not reported
 

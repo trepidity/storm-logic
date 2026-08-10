@@ -59,7 +59,7 @@ const ROOT = new URL('../dist/', import.meta.url).pathname
 const PORT = 4176
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.map': 'application/json' }
 
-const dates = Array.from({ length: 10 }, (_, i) => `2026-08-${String(9 + i).padStart(2, '0')}`)
+const dates = Array.from({ length: 11 }, (_, i) => `2026-08-${String(9 + i).padStart(2, '0')}`)
 const hourlyTime = []
 const hourlyCloud = []
 const hourlyTemp = []

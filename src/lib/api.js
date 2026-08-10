@@ -3,7 +3,12 @@ import { UNIT_PRESETS } from './format.js'
 const OPEN_METEO_FORECAST = 'https://api.open-meteo.com/v1/forecast'
 const OPEN_METEO_GEOCODE = 'https://geocoding-api.open-meteo.com/v1/search'
 
-export const FORECAST_DAYS = 10
+/**
+ * Eleven, not ten. The list skips today (the current-conditions card covers it),
+ * so one extra day keeps a full ten showing ahead. days[0] is still used — it
+ * feeds the card's high/low, sun times, UV and rain chance.
+ */
+export const FORECAST_DAYS = 11
 
 const CURRENT_VARS = [
   'temperature_2m',

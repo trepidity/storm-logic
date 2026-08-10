@@ -24,8 +24,8 @@ const MIME = {
 // ---- fixture -------------------------------------------------------------
 
 const START = '2026-08-09'
-const CODES = [96, 0, 2, 63, 3, 73, 1, 80, 99, 45] // includes both hail codes
-const dates = Array.from({ length: 10 }, (_, i) => {
+const CODES = [96, 0, 2, 63, 3, 73, 1, 80, 99, 45, 2] // includes both hail codes
+const dates = Array.from({ length: 11 }, (_, i) => {
   const d = new Date(Date.UTC(2026, 7, 9 + i))
   return d.toISOString().slice(0, 10)
 })
@@ -71,24 +71,24 @@ const fixture = {
   daily: {
     time: dates,
     weather_code: CODES,
-    temperature_2m_max: [84, 88, 81, 76, 79, 34, 71, 74, 83, 68],
-    temperature_2m_min: [66, 69, 63, 59, 61, 22, 55, 58, 64, 52],
-    apparent_temperature_max: [88, 92, 84, 78, 82, 28, 73, 77, 87, 69],
-    apparent_temperature_min: [64, 68, 61, 57, 60, 14, 53, 56, 63, 50],
+    temperature_2m_max: [84, 88, 81, 76, 79, 34, 71, 74, 83, 68, 77],
+    temperature_2m_min: [66, 69, 63, 59, 61, 22, 55, 58, 64, 52, 60],
+    apparent_temperature_max: [88, 92, 84, 78, 82, 28, 73, 77, 87, 69, 80],
+    apparent_temperature_min: [64, 68, 61, 57, 60, 14, 53, 56, 63, 50, 58],
     sunrise: dates.map((d) => `${d}T05:52`),
     sunset: dates.map((d) => `${d}T20:03`),
     daylight_duration: dates.map(() => 51060),
     sunshine_duration: dates.map((_, i) => 51060 * (0.3 + (i % 5) * 0.15)),
-    uv_index_max: [8.4, 9.1, 6.2, 4.8, 5.5, 1.9, 6.7, 5.1, 8.8, 3.2],
-    precipitation_sum: [0.32, 0, 0.04, 0.91, 0, 0.55, 0, 0.24, 0.78, 0],
-    rain_sum: [0.32, 0, 0.04, 0.91, 0, 0.05, 0, 0.24, 0.78, 0],
-    showers_sum: [0.08, 0, 0, 0.12, 0, 0, 0, 0.06, 0.15, 0],
-    snowfall_sum: [0, 0, 0, 0, 0, 3.4, 0, 0, 0, 0],
-    precipitation_hours: [4, 0, 1, 9, 0, 7, 0, 3, 6, 0],
-    precipitation_probability_max: [70, 5, 20, 90, 10, 85, 5, 45, 80, 15],
-    wind_speed_10m_max: [16, 9, 11, 22, 8, 27, 10, 14, 19, 7],
-    wind_gusts_10m_max: [34, 18, 21, 41, 15, 52, 19, 28, 44, 13],
-    wind_direction_10m_dominant: [215, 180, 90, 270, 45, 315, 135, 200, 250, 20],
+    uv_index_max: [8.4, 9.1, 6.2, 4.8, 5.5, 1.9, 6.7, 5.1, 8.8, 3.2, 6.0],
+    precipitation_sum: [0.32, 0, 0.04, 0.91, 0, 0.55, 0, 0.24, 0.78, 0, 0],
+    rain_sum: [0.32, 0, 0.04, 0.91, 0, 0.05, 0, 0.24, 0.78, 0, 0],
+    showers_sum: [0.08, 0, 0, 0.12, 0, 0, 0, 0.06, 0.15, 0, 0],
+    snowfall_sum: [0, 0, 0, 0, 0, 3.4, 0, 0, 0, 0, 0],
+    precipitation_hours: [4, 0, 1, 9, 0, 7, 0, 3, 6, 0, 0],
+    precipitation_probability_max: [70, 5, 20, 90, 10, 85, 5, 45, 80, 15, 12],
+    wind_speed_10m_max: [16, 9, 11, 22, 8, 27, 10, 14, 19, 7, 12],
+    wind_gusts_10m_max: [34, 18, 21, 41, 15, 52, 19, 28, 44, 13, 22],
+    wind_direction_10m_dominant: [215, 180, 90, 270, 45, 315, 135, 200, 250, 20, 180],
   },
   hourly: {
     time: hourlyTime,
@@ -152,6 +152,8 @@ for (const [name, viewport] of [
     windFrom: document.querySelector('.wind__from')?.textContent,
     sunTimes: [...document.querySelectorAll('.sun__value')].map((n) => n.textContent),
     sunMarker: Boolean(document.querySelector('.sun__marker')),
+    firstDayLabel: document.querySelector('.forecast .day__name strong')?.textContent,
+    hasTodayRow: [...document.querySelectorAll('.forecast .day__name strong')].some((n) => n.textContent === 'Today'),
     hailDays: [...document.querySelectorAll('.forecast .day')]
       .map((d, i) => (d.textContent.includes('Hail risk') ? i : null))
       .filter((v) => v !== null),
@@ -177,12 +179,20 @@ for (const [name, viewport] of [
   for (const [key, ok] of Object.entries(styling)) {
     if (!ok) failures.push(`${name}: styling check failed — ${key}`)
   }
+
+  // The list starts at tomorrow; today lives in the card above it.
+  if (report.hasTodayRow) failures.push(`${name}: forecast list still contains a Today row`)
+  if (report.firstDayLabel !== 'Tomorrow') {
+    failures.push(`${name}: forecast list starts at "${report.firstDayLabel}", expected Tomorrow`)
+  }
+  if (report.dayCount !== 10) failures.push(`${name}: expected 10 forecast rows, got ${report.dayCount}`)
   console.log('styling:', JSON.stringify(styling))
 
-  // Expand the snow day (index 5) to confirm detail panels populate.
-  await page.locator('.forecast .day').nth(5).locator('.day__summary').click()
+  // Expand the snow day. It was index 5 of the full series; the list now
+  // starts at tomorrow, so it sits one row earlier.
+  await page.locator('.forecast .day').nth(4).locator('.day__summary').click()
   await page.waitForTimeout(250)
-  const snowDetail = await page.locator('.forecast .day').nth(5).locator('.day__detail').innerText()
+  const snowDetail = await page.locator('.forecast .day').nth(4).locator('.day__detail').innerText()
 
   await page.screenshot({ path: `/home/claude/shots/${name}.png`, fullPage: true })
 
