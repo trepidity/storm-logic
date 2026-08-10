@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Skywatch — design tokens
+   StormLogic — design tokens
    Sky colours are swapped by `body[data-sky]`, driven by the current WMO code.
    ========================================================================== */
 
@@ -8,12 +8,20 @@
   --sky-mid: #2c5c8f;
   --sky-bot: #4d86ba;
   --ink: #f4f8ff;
-  --ink-soft: rgb(244 248 255 / 0.72);
-  --ink-faint: rgb(244 248 255 / 0.48);
-  --glass: rgb(255 255 255 / 0.1);
-  --glass-strong: rgb(255 255 255 / 0.16);
-  --stroke: rgb(255 255 255 / 0.18);
-  --stroke-soft: rgb(255 255 255 / 0.1);
+  /* Muted inks are deliberately high-alpha. Every surface below is translucent,
+     so text is composited through 2-3 layers before it reaches the sky — the
+     naive "50% white looks subtle" choice lands around 2.5:1. Verified by
+     scripts/contrast-check.mjs, which samples rendered pixels. */
+  --ink-soft: rgb(244 248 255 / 0.93);
+  --ink-faint: rgb(244 248 255 / 0.84);
+  /* Glass is tinted DARK, not white. A white tint lightens the backdrop and
+     collapses contrast against white text on every sky except night. */
+  --glass: rgb(8 20 38 / 0.36);
+  --glass-strong: rgb(8 20 38 / 0.52);
+  --stroke: rgb(255 255 255 / 0.24);
+  --stroke-soft: rgb(255 255 255 / 0.15);
+  --surface-1: rgb(8 20 38 / 0.3);
+  --surface-2: rgb(8 20 38 / 0.4);
   --sun-glow: #ffd479;
   --accent: #7fd4ff;
   --shadow: 0 18px 48px rgb(6 16 32 / 0.34);
@@ -32,15 +40,15 @@
 }
 
 body[data-sky='clear'] {
-  --sky-top: #1d5fa8;
-  --sky-mid: #3d92d4;
-  --sky-bot: #8fd0f0;
+  --sky-top: #12406f;
+  --sky-mid: #2b6fa8;
+  --sky-bot: #5b9cc4;
   --sun-glow: #ffd479;
 }
 body[data-sky='cloudy'] {
-  --sky-top: #3f5570;
-  --sky-mid: #63798f;
-  --sky-bot: #9aabbb;
+  --sky-top: #35485f;
+  --sky-mid: #526779;
+  --sky-bot: #75879a;
   --sun-glow: #ffe1a8;
 }
 body[data-sky='rain'] {
@@ -56,16 +64,42 @@ body[data-sky='storm'] {
   --sun-glow: #ffd166;
 }
 body[data-sky='snow'] {
-  --sky-top: #4a5a72;
-  --sky-mid: #74869e;
-  --sky-bot: #b9c8d8;
+  --sky-top: #3f4e64;
+  --sky-mid: #5f7188;
+  --sky-bot: #8898aa;
   --sun-glow: #eaf4ff;
 }
 body[data-sky='fog'] {
-  --sky-top: #4c5560;
-  --sky-mid: #6d7680;
-  --sky-bot: #9aa2ab;
+  --sky-top: #414952;
+  --sky-mid: #5b636d;
+  --sky-bot: #7b838c;
   --sun-glow: #dfe5ea;
+}
+
+/* Bright skies need a heavier tint still — the pale end of these gradients is
+   what sits behind the lowest-contrast text on the page. */
+body[data-sky='clear'],
+body[data-sky='cloudy'],
+body[data-sky='snow'],
+body[data-sky='fog'] {
+  --glass: rgb(8 20 38 / 0.44);
+  --glass-strong: rgb(8 20 38 / 0.58);
+  --surface-1: rgb(8 20 38 / 0.36);
+  --surface-2: rgb(8 20 38 / 0.46);
+  --tone-rain: #b6e2ff;
+  --tone-dry: rgb(255 255 255 / 0.8);
+}
+
+/* Night skies are already dark; a heavy tint would just muddy them. */
+body[data-sky='night'],
+body[data-sky='night-storm'] {
+  --glass: rgb(255 255 255 / 0.09);
+  --glass-strong: rgb(255 255 255 / 0.15);
+  --surface-1: rgb(255 255 255 / 0.07);
+  --surface-2: rgb(255 255 255 / 0.1);
+  /* White-tinted surfaces lift the backdrop here, so the muted ink has to
+     climb to compensate. */
+  --ink-faint: rgb(244 248 255 / 0.91);
 }
 body[data-sky='night'] {
   --sky-top: #0b1428;
@@ -168,6 +202,10 @@ a {
   inset: 0;
   z-index: -1;
   background:
+    /* Bottom vignette. The footer is the only text with no card behind it, and
+       it lands on the palest part of the gradient — this grounds it without
+       darkening the cards above. */
+    linear-gradient(to top, rgb(5 13 26 / 0.62) 0%, rgb(5 13 26 / 0) 26%),
     radial-gradient(120% 80% at 78% 4%, rgb(255 255 255 / 0.22), transparent 55%),
     linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 46%, var(--sky-bot) 100%);
   transition:
@@ -492,7 +530,7 @@ a {
   padding: 6px 12px;
   font-size: 0.85rem;
   font-weight: 550;
-  background: rgb(255 255 255 / 0.08);
+  background: var(--surface-2);
   border: 1px solid var(--stroke-soft);
   border-left: 3px solid var(--tone-dry);
   border-radius: 10px;
@@ -548,7 +586,7 @@ a {
   flex-direction: column;
   gap: 10px;
   padding: 16px;
-  background: rgb(255 255 255 / 0.06);
+  background: var(--surface-1);
   border: 1px solid var(--stroke-soft);
   border-radius: var(--radius-md);
 }
@@ -653,8 +691,8 @@ a {
 }
 
 .wind__ring {
-  fill: rgb(255 255 255 / 0.05);
-  stroke: rgb(255 255 255 / 0.2);
+  fill: var(--surface-1);
+  stroke: rgb(255 255 255 / 0.28);
   stroke-width: 1.5;
 }
 
@@ -810,7 +848,7 @@ a {
 
 .stat {
   padding: 12px 14px;
-  background: rgb(255 255 255 / 0.05);
+  background: var(--surface-1);
 }
 
 .stat dt {
@@ -867,7 +905,7 @@ a {
 }
 
 .day__summary:hover {
-  background: rgb(255 255 255 / 0.06);
+  background: var(--surface-1);
 }
 
 .day__name {
@@ -976,7 +1014,7 @@ a {
   flex-direction: column;
   gap: 1px;
   padding: 12px 14px;
-  background: rgb(255 255 255 / 0.05);
+  background: var(--surface-1);
   border: 1px solid var(--stroke-soft);
   border-radius: var(--radius-sm);
 }
@@ -1049,14 +1087,16 @@ a {
   margin: 0 auto;
   padding: 0 0 32px;
   font-size: 0.8rem;
-  color: var(--ink-faint);
+  /* The footer sits directly on the sky with no card behind it, at the palest
+     end of the gradient — it needs the stronger ink, and must not stack a
+     second opacity on top of an already-translucent colour. */
+  color: var(--ink-soft);
   text-align: center;
 }
 
 .footer__note {
   margin-top: 4px;
   font-size: 0.75rem;
-  opacity: 0.8;
 }
 
 @media (prefers-reduced-motion: reduce) {

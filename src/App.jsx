@@ -84,9 +84,9 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <span className="brand__mark" aria-hidden="true">
-            ⛅
+            ⛈️
           </span>
-          <span className="brand__name">Skywatch</span>
+          <span className="brand__name">StormLogic</span>
         </div>
 
         <div className="topbar__controls">

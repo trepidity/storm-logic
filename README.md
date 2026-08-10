@@ -1,4 +1,4 @@
-# Skywatch — Weather Concept App
+# StormLogic — Weather Concept App
 
 A 10-day forecast site built on the [Open-Meteo](https://open-meteo.com/) API. No API key, no
 account, no billing setup.
@@ -91,8 +91,34 @@ src/
 netlify/functions/
   forecast.mjs        cached upstream proxy
 scripts/
-  smoke-test.mjs      renders the built app against a fixture (optional, needs `npm i -D playwright`)
+  smoke-test.mjs      renders the built app against a fixture
+  contrast-check.mjs  WCAG audit of every sky theme
 ```
+
+### Design checks
+
+Both scripts are dev-only and deliberately not dependencies. To run them:
+
+```bash
+npm i -D playwright pngjs
+npm run build
+node scripts/smoke-test.mjs      # renders + asserts no console errors
+node scripts/contrast-check.mjs  # 152 contrast checks across 8 sky themes
+```
+
+`contrast-check.mjs` samples **rendered pixels**, not declared colours. Every surface here is
+translucent, so text composites through two or three layers of glass before it reaches the sky
+gradient — you cannot derive the effective contrast from computed styles. It screenshots each text
+element twice, once with all glyphs set to `transparent`, and uses the second as the true
+background.
+
+This caught a real problem: the original palette put muted text at 48% white over a pale daytime
+gradient, landing around **2.5:1** — well below the 4.5:1 AA floor. The fix was to tint the glass
+dark rather than white, raise the muted ink alphas, and add a bottom vignette behind the footer
+(the only text with no card behind it). Worst case is now 4.94:1.
+
+**If you change a colour token, re-run it.** The relationship between the tokens is not obvious by
+eye — several combinations that look fine measure below AA.
 
 ### One gotcha worth knowing
 
