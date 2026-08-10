@@ -448,6 +448,30 @@ for (const [name, viewport] of [
       `${name}: selected-day explanation should describe fixture tomorrow, got ${report.dayExplanation}`,
     )
   }
+  // Outdoor planning is contextual to the selected day, not a separate tab.
+  // The fixture's Tomorrow is dry from its 5am sunrise through 8pm, with the
+  // next hour at 9pm ending that 16-hour daylight window.
+  await page.waitForSelector('.outdoor-plan', { timeout: 10000 })
+  const outdoorPlan = await page.evaluate(() => ({
+    title: document.querySelector('.outdoor-plan__title')?.textContent?.trim(),
+    window: document.querySelector('.outdoor-plan__window')?.textContent?.trim(),
+    gusts: document.querySelector('.outdoor-plan__gusts')?.textContent?.trim(),
+    uv: document.querySelector('.outdoor-plan__uv')?.textContent?.trim(),
+    storm: document.querySelector('.outdoor-plan__storm')?.textContent?.trim(),
+    count: document.querySelectorAll('.outdoor-plan').length,
+  }))
+  if (outdoorPlan.title !== 'Outdoor plan') {
+    failures.push(`${name}: outdoor helper title is missing, got ${outdoorPlan.title}`)
+  }
+  if (outdoorPlan.window !== 'Best dry daylight: 5am–9pm · 16 h') {
+    failures.push(`${name}: outdoor dry daylight window was not rendered, got ${outdoorPlan.window}`)
+  }
+  if (outdoorPlan.gusts !== 'Gusts up to 18 mph' || outdoorPlan.uv !== 'UV index 9.1') {
+    failures.push(`${name}: outdoor gust/UV evidence was not rendered, got ${JSON.stringify(outdoorPlan)}`)
+  }
+  if (outdoorPlan.storm !== 'No thunder signal' || outdoorPlan.count !== 1) {
+    failures.push(`${name}: outdoor thunder evidence or contextual mount is wrong, got ${JSON.stringify(outdoorPlan)}`)
+  }
   // Forecast confidence belongs only to Tomorrow's already-expanded detail.
   // This direct consumer assertion catches a missing lazy fetch, a stale date,
   // or a range assembled from the provider mean instead of its members.

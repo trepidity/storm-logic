@@ -1,5 +1,6 @@
 import { summariseDay } from '../lib/daySummary.js'
 import { explainDay } from '../lib/dayExplanation.js'
+import { deriveOutdoorPlan } from '../lib/outdoorPlan.js'
 import {
   formatTemp,
   formatDayName,
@@ -15,6 +16,7 @@ import {
 import ConditionBadges from './ConditionBadges.jsx'
 import HourlyStrip from './HourlyStrip.jsx'
 import TomorrowConfidence from './TomorrowConfidence.jsx'
+import OutdoorPlan from './OutdoorPlan.jsx'
 
 /** Position the day's high/low as a segment of the whole 10-day range. */
 function rangeStyle(day, scaleMin, scaleMax) {
@@ -35,6 +37,7 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
   const dayName = formatDayName(day.date, index)
   const dayHours = day.hours ?? []
   const explanation = explainDay(day, units)
+  const outdoorPlan = deriveOutdoorPlan(day)
 
   return (
     <li className={`day ${expanded ? 'day--open' : ''}`}>
@@ -79,6 +82,8 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
         {expanded && index === 1 && place ? (
           <TomorrowConfidence place={place} date={day.date} units={units} />
         ) : null}
+
+        {expanded ? <OutdoorPlan plan={outdoorPlan} units={units} /> : null}
 
         <ConditionBadges
           code={day.weatherCode}

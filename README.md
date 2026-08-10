@@ -184,6 +184,7 @@ src/
     weatherCodes.js      WMO code table; the only place hail/snow/rain classification happens
     daySummary.js        derives each day's label from its numbers, not its weather code
     precipTiming.js      next-24h precip start/end labels from existing hourly series
+    outdoorPlan.js       longest complete dry daylight window from selected-day hours
     forecastConfidence.js strict tomorrow middle-80% ensemble derivation
     usAqi.js             US AQI category bands + current-payload normalise
     storage.js           localStorage wrapper; saved places, recents, last location, units
@@ -201,6 +202,7 @@ src/
     AlertsPanel       active NWS alerts (lazy-loaded, U.S. coverage)
     AqiStat           current US AQI in the current-card stat row (U.S. only)
     TomorrowConfidence lazy tomorrow ensemble-spread block
+    OutdoorPlan       selected-day dry daylight interval + weather evidence
     Forecast/DayRow   10-day list with expandable detail + that day's hourly strip
 netlify/functions/
   forecast.mjs        cached upstream proxy (imports forecastContract — do not re-list vars here)
@@ -213,6 +215,7 @@ scripts/
   reverse-geocode-test.mjs    names a GPS fix; falls back to "My location" on failure
   precip-lookback-test.mjs    last-24h precip sum (complete lookback only)
   precip-timing-test.mjs      next-24h precip start/end labels
+  outdoor-plan-test.mjs       complete daylight-window integrity and ordering
   alerts-proxy-test.mjs       NWS point/cache/coverage behaviour through the real handler
   us-aqi-test.mjs             US AQI bands + normalise (pure)
   air-proxy-test.mjs          air-quality proxy URL/cache/validation
@@ -327,7 +330,7 @@ after installing packages (or set `CHROMIUM_PATH` to use a system-provided binar
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # summary + contract + reverse + alerts + build + smoke + contrast + persistence + radar
+npm test          # domain checks + proxy contracts + build + smoke + contrast + persistence + radar
 ```
 
 `contrast-check.mjs` samples **rendered pixels**, not declared colours. Every surface here is
@@ -346,7 +349,7 @@ sky doesn't need darkening — but the night gradient still reaches `#2a3d61` at
 stacked translucent white layers lifted panel backgrounds to mid-slate, dropping accent-coloured
 text to 3.1:1. **Glass is tinted dark on every theme, without exception.**
 
-400 checks across 8 themes, including separate passes with the Radar, Alerts,
+440 checks across 8 themes, including separate passes with the Radar, Alerts,
 Air, and alert-to-Radar handoff open; every measured role meets AA.
 
 One harness bug worth knowing: measuring injects `color: transparent` and removes it moments later,
@@ -370,6 +373,17 @@ The hourly series is already requested for daylight cloud averages. `api.js`
 indexes every step by local calendar date and attaches `day.hours` (00–23) to
 each day object. Expanding a forecast row renders that strip; the current card
 still uses the separate rolling **next 24 hours** window from `data.hours`.
+
+## Outdoor plan
+
+Expanded forecast days include an **Outdoor plan** block rather than a new tab.
+It identifies the longest continuous dry daylight interval from that day's
+hourly forecast, then shows the existing daily gust, UV, and thunder/hail
+signals beside it. The rule is intentionally narrow: measured precipitation
+above zero is wet; only when the amount is unavailable does a 40% or higher
+precipitation chance count as wet. Missing, malformed, or gapped daylight
+evidence suppresses the helper rather than guessing. It is evidence for an
+outdoor decision—not a safety score or recommendation.
 
 ## Last 24h precipitation
 

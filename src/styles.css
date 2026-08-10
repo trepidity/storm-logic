@@ -1696,6 +1696,45 @@ a {
   line-height: 1.45;
 }
 
+.outdoor-plan {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 14px;
+  padding: 12px 14px;
+  color: var(--ink-soft);
+  background: var(--surface-1);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.outdoor-plan__title {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.outdoor-plan__window {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.96rem;
+  font-weight: 600;
+}
+
+.outdoor-plan__evidence {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 3px 14px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
 .confidence {
   display: grid;
   grid-template-columns: auto auto;

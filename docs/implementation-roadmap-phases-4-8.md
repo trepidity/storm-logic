@@ -29,8 +29,8 @@ user.
   and precipitation after the provider contract and display boundary are
   ratified.
 - A selected-day explanation derived only from the day and hourly numbers.
-- Decision helpers only after a named user flow and evidence presentation are
-  ratified.
+- An outdoor-event decision helper inside an expanded forecast day, derived
+  only from existing day and hourly data.
 
 ### Non-goals
 
@@ -46,11 +46,9 @@ user.
 | FEAT-P5-SEVERE-DESK | Feature | `docs/api-and-product-brainstorm.md#32-rainviewer`, `docs/api-and-product-brainstorm.md#33-nws-us-only--already-framed-correctly`, `docs/api-and-product-brainstorm.md#45-alert-intelligence-without-stealing-authority`; user roadmap phase 5 | Phase 5 | Wave A | Alert-to-Radar transition and official active-alert polygon overlay | Alerts provider, Radar Leaflet surface | Active alert normalisation; lazy Radar surface | Alert-to-Radar smoke and Radar polygon lifecycle proof |
 | CAP-P7-EXPLAIN-DAY | Capability | `docs/api-and-product-brainstorm.md#44-explain-this-day`; user roadmap phase 7 | Phase 7 | Wave A | Deterministic, numbers-only selected-day explanation | Day summary + selected day hourly series | Existing day object and DayRow expansion seam | Independent literal cases plus expanded-row browser proof |
 | CAP-P6-CONFIDENCE | Capability | `docs/api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor`, `docs/api-and-product-brainstorm.md#42-confidence-and-disagreement`; user roadmap phase 6; `docs/confidence-discovery.md` | Phase 6 | Wave B | Honest Tomorrow temperature/precip ensemble spread | NCEP GEFS member contract, cached proxy | User-approved source, surface, wording, and cache | Numeric integrity + proxy + desktop/mobile smoke + contrast |
-| FEAT-P8-DECISION-HELPER | Feature | `docs/api-and-product-brainstorm.md#41-decision-modes-should-i`; user roadmap phase 8 | Phase 8 | Blocked | A named commute or outdoor-event decision surface with visible evidence | Forecast/radar/alerts as applicable | Approved first flow, thresholds, and presentation boundary | Consumer-visible evidence and no-network smoke |
+| FEAT-P8-DECISION-HELPER | Feature | `docs/api-and-product-brainstorm.md#41-decision-modes-should-i`; `docs/outdoor-plan-decision.md`; user roadmap phase 8 approval | Phase 8 | Wave C | Outdoor-plan evidence block for an expanded day | Existing day/hourly forecast | Approved outdoor flow, daylight wet rule, and contextual surface | Numeric integrity + expanded-day smoke + contrast |
 
-Hard `requires` edges override desired delivery order and parallelism. P8 is
-intentionally blocked, not scaffolded as fake-success UI, until its product
-decision is recorded.
+Hard `requires` edges override desired delivery order and parallelism.
 
 ## Traceability matrix
 
@@ -60,7 +58,7 @@ decision is recorded.
 | `docs/api-and-product-brainstorm.md#32-rainviewer` and `docs/api-and-product-brainstorm.md#33-nws-us-only--already-framed-correctly` | Official active NWS polygon on Radar and alert → radar jump | T-P5 | alerts handler/client, `AlertsPanel`, `RadarPanel`, app tab handoff | Handler contract + Radar lifecycle smoke | severe-desk lane |
 | `docs/api-and-product-brainstorm.md#44-explain-this-day` | Deterministic explanation from numbers only | T-P7 | `src/lib/dayExplanation.js`, `DayRow` | Literal rule proof + selected-day smoke | explain-day lane |
 | `docs/api-and-product-brainstorm.md#42-confidence-and-disagreement`; `docs/confidence-discovery.md` | Numeric middle-80% member range for tomorrow's high and rain | T-P6 | `forecastConfidence`, confidence proxy/client, Tomorrow expanded detail | Numeric integrity, proxy contract, rendered desktop/mobile, contrast | confidence lane |
-| `docs/api-and-product-brainstorm.md#41-decision-modes-should-i` | Commute/outdoor-event decision helpers with cited evidence | T-P8 | New named surface, only after approval | Blocked pending decision record | product owner |
+| `docs/api-and-product-brainstorm.md#41-decision-modes-should-i`; `docs/outdoor-plan-decision.md` | Longest dry daylight window plus gust/UV/thunder-hail evidence | T-P8 | `outdoorPlan`, `OutdoorPlan`, expanded `DayRow` | Numeric integrity, expanded-day smoke, contrast | outdoor-plan lane |
 
 ## Implementation boundary
 
@@ -76,11 +74,13 @@ decision is recorded.
 - T-P6: `src/lib/forecastConfidence.js`, the confidence client/proxy,
   `TomorrowConfidence`, Tomorrow `DayRow` integration, behavior tests and
   smoke/contrast fixtures.
+- T-P8: `src/lib/outdoorPlan.js`, `OutdoorPlan`, expanded `DayRow`, dedicated
+  numeric proof and smoke/contrast fixtures.
 
 ### Forbidden changes / non-goals
 
-- No new provider, persistence key, tab, subjective confidence threshold, or
-  unapproved natural-language generation for P6/P8.
+- No new provider, persistence key, tab, safety score, subjective confidence
+  threshold, or unapproved natural-language generation for P6/P8.
 - No alert paraphrase that appears to supersede the official NWS source.
 - No partial precipitation-event total displayed as a complete total.
 
@@ -91,10 +91,7 @@ authority update, not a coder decision.
 
 ## Decision gaps and blockers
 
-- **P8:** The brainstorm names commute and outdoor-event as separate flows but
-  does not select the first flow, its decision horizon, thresholds, evidence
-  layout, or whether it is a tab or contextual panel. Product-owner choice is
-  required before implementation.
+- None.
 
 ## Scaffold inventory
 
@@ -104,6 +101,7 @@ authority update, not a coder decision.
 | SC-P5-RADAR-JUMP | `docs/api-and-product-brainstorm.md#32-rainviewer` | `App` alert navigation callback | Receives selected official alert geometry/area and opens Radar | Fail-closed: missing geometry opens Radar at selected place only | severe-desk lane | Alert-to-Radar smoke |
 | SC-P7-EXPLANATION | `docs/api-and-product-brainstorm.md#44-explain-this-day` | `src/lib/dayExplanation.js::explainDay` | Receives existing selected-day data and returns bounded derived sentence or `null` | Fail-closed `null` renders no prose | explain-day lane | Literal rules + smoke |
 | SC-P6-CONFIDENCE | `docs/api-and-product-brainstorm.md#42-confidence-and-disagreement`; `docs/confidence-discovery.md` | `src/lib/forecastConfidence.js::deriveTomorrowConfidence` | Receives NCEP GEFS tomorrow member arrays and date; returns middle-80% high/rain model or `null` | Fail-closed `null` renders explicit unavailable copy | confidence lane | Numeric boundary proof + proxy + smoke |
+| SC-P8-OUTDOOR | `docs/api-and-product-brainstorm.md#41-decision-modes-should-i`; `docs/outdoor-plan-decision.md` | `src/lib/outdoorPlan.js::deriveOutdoorPlan` | Receives one normalized day and returns longest complete dry daylight interval plus visible evidence, or `null` | Fail-closed `null` suppresses the helper | outdoor-plan lane | Numeric integrity + expanded-day smoke |
 
 ## Task breakdown and coder handoffs
 
@@ -168,16 +166,22 @@ authority update, not a coder decision.
   desktop/mobile browser smoke, and contrast.
 - Coder rule: Implement only cited behavior; every uncited path or solution is a blocker requiring an approved authority update.
 
-### T-P8: decision-helper product decision discovery
+### T-P8: outdoor plan
 
 - System node: FEAT-P8-DECISION-HELPER
-- Phase / Wave: Phase 8 / Blocked
-- Hard prerequisites: product decision gaps above resolved.
-- Provides / consumes: a decision record only; consumes the approved roadmap and existing consumer surfaces.
-- Closure gate: product owner approves one named flow, evidence, thresholds, and display boundary.
-- Authority refs: `docs/api-and-product-brainstorm.md#41-decision-modes-should-i`; user roadmap phase 8.
-- Allowed write scope: decision record under `docs/` only.
-- Acceptance evidence: explicit approved decision; no code.
+- Phase / Wave: Phase 8 / C
+- Hard prerequisites: `CAP-P7-EXPLAIN-DAY` selected-day detail seam and the
+  approved Outdoor-plan decision.
+- Provides / consumes: one evidence-visible outdoor planning block; consumes
+  selected-day hourly precipitation, sun/daylight, daily gust, UV, and
+  thunder/hail signals.
+- Closure gate: an expanded day shows the independently fixture-derived dry
+  daylight interval and its gust/UV/storm evidence; incomplete hourly evidence
+  renders no helper.
+- Authority refs: `docs/api-and-product-brainstorm.md#41-decision-modes-should-i`, `docs/outdoor-plan-decision.md`; user roadmap phase 8 approval.
+- Allowed write scope: T-P8 boundary above only.
+- Acceptance evidence: numeric integrity, desktop/mobile expanded-day smoke,
+  and contrast.
 - Coder rule: Implement only cited behavior; every uncited path or solution is a blocker requiring an approved authority update.
 
 ## Verification and closure

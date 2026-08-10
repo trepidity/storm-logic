@@ -1,7 +1,7 @@
 ---
 title: "API inventory and product brainstorm"
 date: 2026-08-10
-version: 1.4
+version: 1.5
 status: Draft
 owner: Jared
 category: research
@@ -340,15 +340,17 @@ about unavailable data without creating a second navigation job.
    Expanded forecast days render a bounded sentence derived only from existing
    normalized day and hourly values—no generated prose or new provider.
 
-8. **Decision helpers** — **decision pending**
-   Choose the first flow (commute or outdoor event), decision horizon,
-   thresholds, evidence presentation, and surface before implementation.
+8. **Outdoor plan decision helper** — **done**
+   Every expanded forecast day now shows its longest dry daylight window with
+   the day's gust, UV, and thunder/hail evidence. It is not a tab, uses no new
+   provider, and suppresses itself when daylight precipitation evidence is
+   incomplete. See `docs/outdoor-plan-decision.md`.
 
 ### 10.3 Explicitly deferred (still valid later, not next)
 
-- Decision helpers, vs-normal historical, NWS AFD,
-  drag-reorder places, and richer icons — see §6–§8. Confidence and decision
-  helpers remain pending their explicit product decisions.
+- Commute helper, vs-normal historical, NWS AFD, drag-reorder places, and
+  richer icons — see §6–§8. The first outdoor-event helper is complete; later
+  helper flows still need their own explicit product decisions.
 
 ---
 
@@ -361,3 +363,4 @@ about unavailable data without creating a second navigation job.
 | 1.2 | 2026-08-10 | Air coverage locked to U.S. only (not global US AQI display) |
 | 1.3 | 2026-08-10 | Phase 6 locked and delivered: lazy Tomorrow NCEP GEFS middle-80% spread |
 | 1.4 | 2026-08-10 | US AQI moved from a dedicated tab into the current-card stat row |
+| 1.5 | 2026-08-10 | Recorded the implemented outdoor-plan decision helper and its evidence boundary |
