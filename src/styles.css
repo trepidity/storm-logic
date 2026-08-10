@@ -1100,10 +1100,25 @@ a {
   display: none;
 }
 
+/* Explicit column counts rather than auto-fit. There are six tiles, and every
+   count here divides six evenly (3x2, 2x3, 1x6) so a row is never left with a
+   single orphan tile. auto-fit produced 5 + 1 at desktop width. */
 .day__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+}
+
+@media (max-width: 760px) {
+  .day__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 430px) {
+  .day__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .metric {
