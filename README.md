@@ -16,6 +16,7 @@ account, no billing setup.
 | Hail | WMO codes **96** and **99** only | See the caveat below |
 | Wind | `wind_speed_10m_max`, `wind_gusts_10m_max`, `wind_direction_10m_dominant` | Rendered as a compass dial |
 | Next 24 hours | hourly `temperature_2m`, `weather_code`, `precipitation_probability` | Scrollable strip with a temperature trend line |
+| Radar | **RainViewer** (not Open-Meteo) | Separate tab; see below |
 
 Day/night for the hourly icons is derived from each date's sunrise/sunset rather than requesting
 the hourly `is_day` field — one fewer variable that can invalidate the whole request, and the sun
@@ -109,6 +110,7 @@ src/
     weatherCodes.js   WMO code table; the only place hail/snow/rain classification happens
     daySummary.js     derives each day's label from its numbers, not its weather code
     storage.js        localStorage wrapper; saved places, recents, last location, units
+    radar.js          RainViewer frame index + tile URL construction
     format.js         units, compass points, local-time parsing
   components/
     LocationSearch    geocoding search + geolocation
@@ -118,6 +120,7 @@ src/
     WindDial          compass with needle + gusts
     SunArc            compact sunrise→sunset track with current position
     HourlyStrip       next 24 hours + temperature trend line
+    RadarPanel        animated RainViewer radar (lazy-loaded)
     Forecast/DayRow   10-day list with expandable detail
 netlify/functions/
   forecast.mjs        cached upstream proxy
@@ -126,7 +129,34 @@ scripts/
   smoke-test.mjs       renders the built app against a fixture
   contrast-check.mjs   WCAG audit of every sky theme
   persistence-test.mjs saved locations, recents, restore-on-reload
+  radar-test.mjs       radar frame logic + tab behaviour
 ```
+
+## Radar
+
+Open-Meteo has no radar, so this is a second provider: **RainViewer**. Keyless like Open-Meteo,
+global, 5-minute refresh, ~2 hours of past frames plus nowcast frames that run about half an hour
+ahead. Attribution is required and the free tier is non-commercial — the same ceiling Open-Meteo
+already imposes here.
+
+It lives in its own **tab, not the main view**. Leaflet is ~42KB gzipped plus its CSS, and radar
+tiles are heavy on mobile data, so `RadarPanel` is `React.lazy`-loaded and none of it is fetched
+until the tab is opened. `radar-test.mjs` asserts that: zero tile requests while the Forecast tab
+is showing.
+
+Three things that will bite whoever touches this next:
+
+1. **Tile size must match.** The size in the RainViewer path and Leaflet's `tileSize` have to
+   agree. 512 additionally needs `zoomOffset: -1`. We use 256 and keep both tied to the
+   `TILE_SIZE` constant in `radar.js`, with a regression test.
+2. **Animate with opacity, not by adding and removing layers.** Every frame becomes a layer up
+   front. Swapping layers per tick makes the loop flicker while the incoming frame's tiles are
+   still downloading.
+3. **`scrollWheelZoom` is off.** The page scrolls; a map that eats the wheel fights the user.
+
+The basemap is CARTO `dark_matter`. Note it serves from `a.basemaps.cartocdn.com` and friends — a
+glob route like `**/basemaps.cartocdn.com/**` will not match across the subdomain, which is why the
+tests use regexes.
 
 ## Saved locations
 
@@ -154,7 +184,7 @@ Dev-only and deliberately not dependencies:
 
 ```bash
 npm i -D playwright pngjs
-npm test          # summary + build + smoke + contrast + persistence
+npm test          # summary + build + smoke + contrast + persistence + radar
 ```
 
 `contrast-check.mjs` samples **rendered pixels**, not declared colours. Every surface here is
@@ -173,7 +203,12 @@ sky doesn't need darkening — but the night gradient still reaches `#2a3d61` at
 stacked translucent white layers lifted panel backgrounds to mid-slate, dropping accent-coloured
 text to 3.1:1. **Glass is tinted dark on every theme, without exception.**
 
-184 checks across 8 themes; worst case is 6.47:1.
+232 checks across 8 themes, including a second pass with the Radar tab open; worst case is 5.63:1.
+
+One harness bug worth knowing: measuring injects `color: transparent` and removes it moments later,
+so any element with a CSS colour *transition* gets read mid-animation at a fractional alpha and
+reports a false ~1:1. The checker now disables transitions and animations for the whole run. Tabs
+were the first elements here with a colour transition, and they surfaced it.
 
 **If you change a colour token, re-run it.** The relationship between the tokens is not obvious by
 eye — several combinations that look fine measure below AA.
@@ -188,7 +223,6 @@ string parts directly instead. Don't replace it with `new Date(iso)`.
 ## Possible next steps
 
 - Hourly strip for the selected day (the hourly data is already being fetched for cloud cover)
-- Radar overlay — RainViewer tiles are free and pair well with Leaflet
 - NWS `/alerts/active` for US severe weather banners
 - Precipitation-type icons driven by `snow_depth` for winter accuracy
 - Drag to reorder saved locations

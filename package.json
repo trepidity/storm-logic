@@ -8,13 +8,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "npm run test:summary && npm run build && npm run test:smoke && npm run test:contrast && npm run test:persistence",
+    "test": "npm run test:summary && npm run build && npm run test:smoke && npm run test:contrast && npm run test:persistence && npm run test:radar",
     "test:summary": "node scripts/summary-test.mjs",
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:contrast": "node scripts/contrast-check.mjs",
-    "test:persistence": "node scripts/persistence-test.mjs"
+    "test:persistence": "node scripts/persistence-test.mjs",
+    "test:radar": "node scripts/radar-test.mjs"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

@@ -539,6 +539,226 @@ a {
   transform: scale(1.08);
 }
 
+/* ===== Tabs ============================================================== */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  align-self: flex-start;
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+}
+
+.tabs button {
+  padding: 8px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-faint);
+  border-radius: 999px;
+  transition:
+    background 220ms var(--ease),
+    color 220ms var(--ease);
+}
+
+.tabs button:hover {
+  color: var(--ink);
+}
+
+.tabs button.is-active {
+  color: var(--ink);
+  background: var(--glass-strong);
+}
+
+.panelgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== Radar ============================================================= */
+
+.radar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+}
+
+.radar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.radar__stamp {
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.radar__stamp--future {
+  color: var(--sun-glow);
+}
+
+.radar__map {
+  height: 440px;
+  background: #0d1520;
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Leaflet ships light-theme chrome; these bring it into the dark palette. */
+.leaflet-container {
+  background: #0d1520;
+  font-family: inherit;
+}
+
+.leaflet-control-attribution {
+  background: rgb(8 20 38 / 0.72) !important;
+  color: var(--ink-faint) !important;
+  font-size: 10px !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--accent) !important;
+}
+
+.leaflet-bar a {
+  background: rgb(8 20 38 / 0.82) !important;
+  color: var(--ink) !important;
+  border-color: var(--stroke-soft) !important;
+}
+
+.radar__pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 4px rgb(127 212 255 / 0.28),
+    0 0 0 1px rgb(8 20 38 / 0.6);
+}
+
+.radar__controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.radar__play {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  font-size: 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 50%;
+  transition: background 200ms var(--ease);
+}
+
+.radar__play:hover {
+  background: var(--glass-strong);
+}
+
+.radar__timeline {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.radar__ticks {
+  display: flex;
+  gap: 3px;
+  height: 26px;
+}
+
+.radar__ticks li {
+  flex: 1;
+  display: flex;
+}
+
+.radar__tick {
+  flex: 1;
+  border-radius: 4px;
+  background: var(--surface-2);
+  transition:
+    background 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+
+.radar__tick:hover {
+  background: rgb(255 255 255 / 0.24);
+}
+
+.radar__tick--future {
+  background: rgb(255 212 121 / 0.26);
+}
+
+.radar__tick--on {
+  background: var(--accent);
+  transform: scaleY(1.18);
+}
+
+.radar__tick--future.radar__tick--on {
+  background: var(--sun-glow);
+}
+
+.radar__scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.radar__legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.radar__legend span {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.radar__ramp {
+  height: 8px;
+  flex: 1;
+  min-width: 140px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4fd06a, #e8e04a, #e8a13a, #e05a3a, #c53ac5);
+}
+
+.radar__credit {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  .radar {
+    padding: 16px;
+  }
+
+  .radar__map {
+    height: 320px;
+  }
+}
+
 /* ===== Cards ============================================================= */
 
 .current,

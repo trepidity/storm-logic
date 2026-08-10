@@ -62,7 +62,30 @@ const TARGETS = [
   ['.badge', 'badge text'],
   ['.footer p', 'footer attribution'],
   ['.footer__note', 'footer hail note'],
+  ['.tabs button.is-active', 'active tab'],
+  ['.tabs button:not(.is-active)', 'inactive tab'],
 ]
+
+// Only present once the Radar tab is open, so they're measured in a second pass.
+const RADAR_TARGETS = [
+  ['.radar__stamp', 'radar timestamp'],
+  ['.radar__scale span', 'radar time scale'],
+  ['.radar__legend span', 'radar legend'],
+  ['.radar__credit', 'radar attribution'],
+]
+
+const RADAR_INDEX = {
+  version: '2.0',
+  host: 'https://tilecache.rainviewer.com',
+  radar: {
+    past: [1786000000, 1786000600, 1786001200].map((t) => ({ time: t, path: '/v2/radar/' + t })),
+    nowcast: [{ time: 1786001800, path: '/v2/radar/nowcast_1' }],
+  },
+}
+const PIXEL = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  'base64',
+)
 
 // ---- colour maths ---------------------------------------------------------
 
@@ -202,13 +225,28 @@ for (const theme of THEMES) {
   await page.route('**/api/forecast*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(makeFixture(theme.code, theme.isDay)) }),
   )
+  // Regexes, not globs: CARTO serves from a.basemaps.cartocdn.com and friends.
+  await page.route(/api\.rainviewer\.com/, (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RADAR_INDEX) }))
+  await page.route(/tilecache\.rainviewer\.com|basemaps\.cartocdn\.com/, (r) =>
+    r.fulfill({ status: 200, contentType: 'image/png', body: PIXEL }))
+
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.current__temp')
 
+  // Kill transitions for the whole run. Measuring injects `color: transparent`
+  // and removes it again in quick succession; any element with a colour
+  // transition gets read mid-animation at a fractional alpha, which reports a
+  // false ~1:1. Tabs were the first elements here with a colour transition.
+  await page.addStyleTag({
+    content: '*, *::before, *::after { transition: none !important; animation: none !important; }',
+  })
+
   const rows = []
-  for (const [selector, label] of TARGETS) {
+
+  async function measure(selector, label) {
     const el = page.locator(selector).first()
-    if (!(await el.count())) continue
+    if (!(await el.count())) return
 
     const style = await el.evaluate((n) => {
       const cs = getComputedStyle(n)
@@ -231,6 +269,14 @@ for (const theme of THEMES) {
     rows.push({ label, ratio: ratio.toFixed(2), need: threshold, pass })
     if (!pass) failures.push(`${theme.name} · ${label}: ${ratio.toFixed(2)}:1 (needs ${threshold}:1)`)
   }
+
+  for (const [selector, label] of TARGETS) await measure(selector, label)
+
+  // Second pass with the Radar tab open — its chrome only exists there.
+  await page.locator('.tabs button', { hasText: 'Radar' }).click()
+  await page.waitForSelector('.radar__tick', { timeout: 15000 })
+  await page.waitForTimeout(400)
+  for (const [selector, label] of RADAR_TARGETS) await measure(selector, label)
 
   const worst = [...rows].sort((a, b) => a.ratio - b.ratio).slice(0, 3)
   console.log(

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchForecast, currentPosition } from './lib/api.js'
 import { UNIT_PRESETS } from './lib/format.js'
 import { skyTheme } from './lib/weatherCodes.js'
@@ -24,6 +24,11 @@ import SavedPlaces from './components/SavedPlaces.jsx'
 import CurrentCard from './components/CurrentCard.jsx'
 import Forecast from './components/Forecast.jsx'
 
+// Radar pulls in Leaflet (~42KB gzipped) plus its CSS, and radar tiles are
+// heavy on mobile data. Lazy so none of that is paid for unless the tab is
+// opened; the forecast view is what nearly every visit is actually for.
+const RadarPanel = lazy(() => import('./components/RadarPanel.jsx'))
+
 const DEFAULT_PLACE = normalisePlace({
   name: 'Chicago',
   label: 'Chicago, Illinois, United States',
@@ -45,6 +50,8 @@ export default function App() {
   const [data, setData] = useState(null)
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
+  // Not persisted: forecast is the right thing to land on every visit.
+  const [tab, setTab] = useState('forecast')
 
   const units = UNIT_PRESETS[unitId]
   const abortRef = useRef(null)
@@ -256,18 +263,57 @@ export default function App() {
               </p>
             ) : null}
 
-            <CurrentCard
-              place={place}
-              current={data.current}
-              today={data.days[0]}
-              hours={data.hours}
-              units={units}
-              timezone={data.timezone}
-              isFavorite={isFavorite}
-              onToggleFavorite={toggleFavorite}
-            />
+            <nav className="tabs" role="tablist" aria-label="Views">
+              {[
+                ['forecast', 'Forecast'],
+                ['radar', 'Radar'],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`tab-${id}`}
+                  aria-selected={tab === id}
+                  aria-controls={`panel-${id}`}
+                  className={tab === id ? 'is-active' : ''}
+                  onClick={() => setTab(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
 
-            <Forecast days={data.days} units={units} />
+            {tab === 'forecast' ? (
+              <div role="tabpanel" id="panel-forecast" aria-labelledby="tab-forecast" className="panelgroup">
+                <CurrentCard
+                  place={place}
+                  current={data.current}
+                  today={data.days[0]}
+                  hours={data.hours}
+                  units={units}
+                  timezone={data.timezone}
+                  isFavorite={isFavorite}
+                  onToggleFavorite={toggleFavorite}
+                />
+
+                <Forecast days={data.days} units={units} />
+              </div>
+            ) : (
+              <div role="tabpanel" id="panel-radar" aria-labelledby="tab-radar">
+                <Suspense
+                  fallback={
+                    <div className="state state--loading">
+                      <span className="state__spinner" aria-hidden="true" />
+                      <p>Loading radar…</p>
+                    </div>
+                  }
+                >
+                  {/* Keyed on the place so switching location rebuilds cleanly
+                      rather than trying to reconcile a live Leaflet instance. */}
+                  <RadarPanel key={place.key} place={place} />
+                </Suspense>
+              </div>
+            )}
           </>
         ) : null}
       </main>
