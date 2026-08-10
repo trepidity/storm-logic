@@ -991,138 +991,6 @@ a {
   }
 }
 
-/* ===== Air quality (US AQI) ============================================== */
-
-.air {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 20px;
-  background: var(--glass);
-  border: 1px solid var(--stroke-soft);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(20px);
-}
-
-.air__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.air__eyebrow,
-.air__scale,
-.air__time,
-.air__note {
-  font-size: 0.8rem;
-  color: var(--ink-soft);
-}
-
-.air__head h1 {
-  font-size: 1.1rem;
-  line-height: 1.25;
-}
-
-.air__head > a {
-  flex: none;
-  font-size: 0.85rem;
-}
-
-.air__state,
-.air__empty,
-.air__unavailable {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 76px;
-  padding: 16px;
-  background: var(--surface-1);
-  border: 1px solid var(--stroke-soft);
-  border-radius: var(--radius-md);
-}
-
-.air__unavailable {
-  border-left: 3px solid var(--sun-glow);
-}
-
-.air__reading {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 20px 18px;
-  background: var(--surface-1);
-  border: 1px solid var(--stroke-soft);
-  border-left: 4px solid var(--tone-dry);
-  border-radius: var(--radius-md);
-}
-
-/* Category accents use border only so body text stays on theme ink (WCAG). */
-.air__reading--good {
-  border-left-color: #3d9b5f;
-}
-
-.air__reading--moderate {
-  border-left-color: #c9a227;
-}
-
-.air__reading--usg {
-  border-left-color: #d97a2b;
-}
-
-.air__reading--unhealthy {
-  border-left-color: var(--tone-thunder);
-}
-
-.air__reading--very-unhealthy {
-  border-left-color: #8b4fbf;
-}
-
-.air__reading--hazardous {
-  border-left-color: #7a1f3d;
-}
-
-.air__value {
-  margin: 0;
-  font-size: clamp(2.8rem, 8vw, 3.6rem);
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-}
-
-.air__category {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
-  color: var(--ink);
-}
-
-.air__time {
-  margin: 8px 0 0;
-}
-
-.air__time-label {
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.68rem;
-  color: var(--ink-faint);
-}
-
-.air__note {
-  margin: 0;
-  line-height: 1.4;
-}
-
-@media (max-width: 640px) {
-  .air {
-    padding: 16px;
-  }
-}
-
 /* ===== Cards ============================================================= */
 
 .current,
@@ -1680,6 +1548,14 @@ a {
   font-size: 1.1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.stat__note {
+  display: block;
+  margin-top: 1px;
+  color: var(--ink-faint);
+  font-size: 0.72rem;
+  line-height: 1.2;
 }
 
 /* ===== Forecast ========================================================== */

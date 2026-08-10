@@ -1,7 +1,7 @@
 ---
 title: "API inventory and product brainstorm"
 date: 2026-08-10
-version: 1.1
+version: 1.4
 status: Draft
 owner: Jared
 category: research
@@ -19,7 +19,7 @@ tags:
 # API inventory and product brainstorm
 
 - **Date**: 2026-08-10
-- **Version**: 1.1
+- **Version**: 1.4
 - **Status**: Draft
 - **Owner**: Jared
 
@@ -298,13 +298,13 @@ Recorded 2026-08-10. These override vague brainstorm options where they conflict
 | **Scale** | **US AQI** (EPA bands) — not European AQI or other national indices |
 | **Coverage** | **U.S. locations only** (CONUS, AK, HI, PR/USVI). Outside coverage: explicit message; **no upstream call** |
 | **Label** | UI copy is exactly **`US AQI`** — not bare “AQI”, not “EPA AQI” as the primary label |
-| **Surface** | Dedicated lazy **Air** tab (own provider boundary), not a Forecast card clutter dump |
-| **Initial scope** | Current US AQI value, category band, model-valid time (“Valid at”), and explicit **unavailable / no-data / out-of-coverage** states |
+| **Surface** | Compact **US AQI** widget in the current-card stat row; no Air tab |
+| **Initial scope** | Current US AQI value, category band, and compact **loading / unavailable / no-data / out-of-coverage** states |
 | **Out of scope (v1)** | Pollen, multi-pollutant dashboard, non-U.S. AQI products, per-species charts |
 
-Rationale: Forecast stays the clean daily-weather view. Air matches Alerts as a
-U.S.-scoped provider surface — load when opened, fail honestly, do not pretend
-global air quality interest.
+Rationale: AQI now earns a single stat-sized place beside humidity, pressure,
+UV, precip total, and rain chance. It remains U.S.-scoped, cached, and honest
+about unavailable data without creating a second navigation job.
 
 ### 10.2 Ordered roadmap (execution sequence)
 
@@ -312,9 +312,9 @@ global air quality interest.
    Complete lookback only; partial/gapped history → unavailable (`—`); full dry
    window → zero amount.
 
-2. **Dedicated lazy Air tab** — **done**
-   As locked in §10.1: current US AQI, category, source time, unavailable/no-data.
-   No pollen or pollutant-dashboard scope initially.
+2. **Current-card US AQI widget** — **done**
+   Current US AQI and category in the stat row, with compact loading and
+   unavailable/no-data/U.S.-only states. No pollen or pollutant dashboard.
 
 3. **Precipitation timing from the existing hourly forecast** — **done**
    Onset/end from next-24h hourly series on the current card.
@@ -360,3 +360,4 @@ global air quality interest.
 | 1.1 | 2026-08-10 | Locked US AQI rules + ordered roadmap (precip integrity → Air tab → precip timing) |
 | 1.2 | 2026-08-10 | Air coverage locked to U.S. only (not global US AQI display) |
 | 1.3 | 2026-08-10 | Phase 6 locked and delivered: lazy Tomorrow NCEP GEFS middle-80% spread |
+| 1.4 | 2026-08-10 | US AQI moved from a dedicated tab into the current-card stat row |

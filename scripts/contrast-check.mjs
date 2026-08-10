@@ -65,6 +65,7 @@ const TARGETS = [
   ['.hour__chance--on', 'hour precip chance'],
   ['.stat dt', 'stat caption'],
   ['.stat dd', 'stat value'],
+  ['.stat__note', 'US AQI category'],
   ['.forecast__hint', 'forecast hint'],
   ['.day__name small', 'day date'],
   ['.day__condition', 'day condition'],
@@ -109,18 +110,6 @@ const ALERT_TARGETS = [
   ['.alert__area', 'alert area'],
   ['.alert__radar', 'alert radar handoff'],
   ['.alert__details summary', 'alert details control'],
-]
-
-// Air is likewise lazy-tab content: measure its value, model-time label, and
-// attribution after opening the real surface rather than assuming Forecast's
-// glass palette covers it.
-const AIR_TARGETS = [
-  ['.air__eyebrow', 'air provider label'],
-  ['.air__scale', 'air scale'],
-  ['.air__value', 'air value'],
-  ['.air__category', 'air category'],
-  ['.air__time', 'air valid time'],
-  ['.air__note', 'air attribution'],
 ]
 
 const RADAR_INDEX = {
@@ -364,6 +353,7 @@ for (const theme of themesToCheck) {
 
   await page.goto(`http://localhost:${serverPort}/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.current__temp')
+  await page.waitForSelector('.stat--aqi .stat__value', { timeout: 10000 })
   await page.waitForSelector('.confidence--ready', { timeout: 10000 })
 
   // Privacy copy is collapsed until the locate control is active; focus it so
@@ -427,10 +417,6 @@ for (const theme of themesToCheck) {
   await page.locator('.alert__radar').click()
   await page.waitForSelector('.radar__alert-note', { timeout: 10000 })
   for (const [selector, label] of RADAR_ALERT_TARGETS) await measure(selector, label)
-
-  await page.locator('.tabs button', { hasText: 'Air' }).click()
-  await page.waitForSelector('.air__reading', { timeout: 10000 })
-  for (const [selector, label] of AIR_TARGETS) await measure(selector, label)
 
   const worst = [...rows].sort((a, b) => a.ratio - b.ratio).slice(0, 3)
   console.log(

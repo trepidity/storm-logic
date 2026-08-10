@@ -19,7 +19,7 @@ account, no billing setup.
 | Next 24 hours | hourly `temperature_2m`, `weather_code`, `precipitation_probability` | Scrollable strip with a temperature trend line |
 | Radar | **RainViewer** (not Open-Meteo) | Separate tab; see below |
 | Active alerts | **NWS** `/alerts/active` | Dedicated, lazy U.S.-coverage tab; see below |
-| Air quality | Open-Meteo AQ `current.us_aqi` | Lazy **Air** tab; **US AQI**, **U.S. locations only** — see below |
+| Air quality | Open-Meteo AQ `current.us_aqi` | Current-card **US AQI** stat; **U.S. locations only** — see below |
 | Precip timing | next-24h hourly series | “Starting ~3pm” / “Ending ~6pm” on the current card |
 
 Day/night for the hourly icons is derived from each date's sunrise/sunset rather than requesting
@@ -128,12 +128,11 @@ service.
 
 ## Air quality
 
-Air quality stays out of Forecast entirely. Opening the lazy **Air** tab loads
-current **US AQI** for the selected coordinates from the
+The current-card stat row includes **US AQI** for the selected coordinates from the
 [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api)
 (`current=us_aqi`). The scale label in the UI is exactly **`US AQI`**. Scope is
 **U.S. locations only** (CONUS, Alaska, Hawaii, PR/USVI) — outside that footprint
-the tab says so and does not call the upstream (even though Open-Meteo can return
+the widget says so and does not call the upstream (even though Open-Meteo can return
 a US-scale index worldwide). EPA-style bands:
 
 | US AQI | Category |
@@ -145,9 +144,9 @@ a US-scale index worldwide). EPA-style bands:
 | 201–300 | Very Unhealthy |
 | 301+ | Hazardous |
 
-Initial scope is the current index value, category band, model-valid time, and
-explicit no-data / service-error states. Pollen, multi-pollutant charts, and
-European AQI are out of scope.
+Initial scope is the current index value, category band, and compact
+loading/no-data/service-error states. Pollen, multi-pollutant charts, and
+European AQI are out of scope; there is no Air tab.
 
 `netlify/functions/air.mjs` caches like the forecast proxy
 (`s-maxage=900`, `stale-while-revalidate=3600`) with coordinates rounded to two
@@ -200,7 +199,7 @@ src/
     HourlyStrip       hourly columns + temperature trend (next-24 or a full day)
     RadarPanel        animated RainViewer radar (lazy-loaded)
     AlertsPanel       active NWS alerts (lazy-loaded, U.S. coverage)
-    AirPanel          current US AQI (lazy-loaded, U.S. coverage only)
+    AqiStat           current US AQI in the current-card stat row (U.S. only)
     TomorrowConfidence lazy tomorrow ensemble-spread block
     Forecast/DayRow   10-day list with expandable detail + that day's hourly strip
 netlify/functions/
@@ -347,7 +346,7 @@ sky doesn't need darkening — but the night gradient still reaches `#2a3d61` at
 stacked translucent white layers lifted panel backgrounds to mid-slate, dropping accent-coloured
 text to 3.1:1. **Glass is tinted dark on every theme, without exception.**
 
-440 checks across 8 themes, including separate passes with the Radar, Alerts,
+400 checks across 8 themes, including separate passes with the Radar, Alerts,
 Air, and alert-to-Radar handoff open; every measured role meets AA.
 
 One harness bug worth knowing: measuring injects `color: transparent` and removes it moments later,

@@ -240,18 +240,15 @@ for (const [name, viewport] of [
   const consoleErrors = []
   let alertMode = 'active'
   let alertRequests = 0
-  let airMode = 'ready'
   let airRequests = 0
   let confidenceRequests = 0
   page.on('console', (m) => {
     // The coverage fixture intentionally returns 422. Chromium reports that
     // expected HTTP response as a console error even though the UI asserts its
     // dedicated recovery state below; retain every other console error.
-    // Air service-error fixture uses 502 the same way.
     if (
       m.type() === 'error' &&
-      !(alertMode === 'coverage' && m.text().includes('422')) &&
-      !(airMode === 'error' && m.text().includes('502'))
+      !(alertMode === 'coverage' && m.text().includes('422'))
     ) {
       consoleErrors.push(m.text())
     }
@@ -281,20 +278,6 @@ for (const [name, viewport] of [
   })
   await page.route('**/api/air*', (route) => {
     airRequests += 1
-    if (airMode === 'no-data') {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ current: { time: '2026-08-09T14:00', us_aqi: null } }),
-      })
-    }
-    if (airMode === 'error') {
-      return route.fulfill({
-        status: 502,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'Upstream air quality service error.' }),
-      })
-    }
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(airFixture) })
   })
   await page.route('**/api/confidence*', (route) => {
@@ -305,10 +288,11 @@ for (const [name, viewport] of [
   await page.goto(`http://localhost:${serverPort}/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.current__temp', { timeout: 10000 })
   if (alertRequests !== 0) failures.push(`${name}: Alerts fetched before its tab was opened`)
-  if (airRequests !== 0) failures.push(`${name}: Air fetched before its tab was opened`)
+  // US AQI is now a compact current-card stat, so it loads with Forecast.
+  await page.waitForSelector('.stat--aqi .stat__value', { timeout: 10000 })
 
   const tabLabels = await page.locator('.tabs button').allTextContents()
-  if (!tabLabels.includes('Air')) failures.push(`${name}: Air tab is missing from the tablist`)
+  if (tabLabels.includes('Air')) failures.push(`${name}: Air should be a current-card widget, not a tab`)
 
   const report = await page.evaluate(() => ({
     temp: document.querySelector('.current__temp')?.textContent?.trim(),
@@ -332,6 +316,12 @@ for (const [name, viewport] of [
       ?.textContent?.trim(),
     precipTiming: document.querySelector('.current__precip-timing')?.textContent?.trim(),
     precipEvent: document.querySelector('.current__precip-event')?.textContent?.trim(),
+    aqi: {
+      label: document.querySelector('.stat--aqi dt')?.textContent?.trim(),
+      value: document.querySelector('.stat--aqi .stat__value')?.textContent?.trim(),
+      category: document.querySelector('.stat--aqi .stat__note')?.textContent?.trim(),
+      count: document.querySelectorAll('.stat').length,
+    },
     dayExplanation: document.querySelector('.day--open .day__explanation')?.textContent?.trim(),
     hailDays: [...document.querySelectorAll('.forecast .day')]
       .map((d, i) => (d.textContent.includes('Hail risk') ? i : null))
@@ -419,6 +409,14 @@ for (const [name, viewport] of [
   }
   if (report.geoTextVisible) {
     failures.push(`${name}: geo control should be icon-only (no visible "My location" text)`)
+  }
+  if (report.aqi.label !== 'US AQI' || report.aqi.value !== '42' || report.aqi.category !== 'Good') {
+    failures.push(`${name}: US AQI current-card widget was not rendered, got ${JSON.stringify(report.aqi)}`)
+  }
+  if (report.aqi.count !== 6 || airRequests !== 1) {
+    failures.push(
+      `${name}: AQI should add one current-card stat and one forecast-time request, got ${report.aqi.count} stats / ${airRequests} requests`,
+    )
   }
   // 24 lookback hours × 0.01 in — proves past_days precip is summed, not today's daily total.
   if (report.precipLast24h !== '0.24 in') {
@@ -621,59 +619,6 @@ for (const [name, viewport] of [
     failures.push(`${name}: Alerts should fetch once per opened surface state, got ${alertRequests}`)
   }
   console.log('alerts:', JSON.stringify({ activeAlert, requests: alertRequests }))
-
-  // Air is a fourth lazy tab: US AQI only. Forecast must not fetch it; ready /
-  // no-data / service-error states are asserted against /api/air fixtures.
-  await page.locator('.tabs button', { hasText: 'Forecast' }).click()
-  airMode = 'ready'
-  await page.locator('.tabs button', { hasText: 'Air' }).click()
-  await page.waitForSelector('.air__reading', { timeout: 10000 })
-  const airReady = await page.evaluate(() => ({
-    forecastVisible: Boolean(document.querySelector('.forecast')),
-    scaleLabels: [...document.querySelectorAll('.air .air__scale, .air .air__eyebrow')].map((n) =>
-      n.textContent.trim(),
-    ),
-    value: document.querySelector('.air__value')?.textContent?.trim(),
-    category: document.querySelector('.air__category')?.textContent?.trim(),
-    time: document.querySelector('.air__time')?.textContent?.trim(),
-    note: document.querySelector('.air__note')?.textContent?.trim() ?? '',
-  }))
-  if (airReady.forecastVisible) failures.push(`${name}: Forecast content remained mounted in Air`)
-  if (!airReady.scaleLabels.every((t) => t === 'US AQI') || airReady.scaleLabels.length < 1) {
-    failures.push(`${name}: Air panel must label the scale "US AQI", got ${JSON.stringify(airReady.scaleLabels)}`)
-  }
-  if (airReady.value !== '42') failures.push(`${name}: US AQI value was not rendered, got ${airReady.value}`)
-  if (airReady.category !== 'Good') {
-    failures.push(`${name}: US AQI category was not rendered, got ${airReady.category}`)
-  }
-  if (!airReady.time?.startsWith('Valid at ')) {
-    failures.push(`${name}: Air must describe model time as "Valid at", got ${airReady.time}`)
-  }
-  if (!airReady.note.includes('US AQI') || !airReady.note.includes('U.S. locations only')) {
-    failures.push(
-      `${name}: Air note must say US AQI for U.S. locations only, got ${JSON.stringify(airReady.note)}`,
-    )
-  }
-
-  await page.locator('.tabs button', { hasText: 'Forecast' }).click()
-  airMode = 'no-data'
-  await page.locator('.tabs button', { hasText: 'Air' }).click()
-  await page.waitForSelector('.air__empty', { timeout: 10000 })
-  if (!(await page.locator('.air__empty').innerText()).includes('US AQI')) {
-    failures.push(`${name}: no-data Air state was not rendered`)
-  }
-
-  await page.locator('.tabs button', { hasText: 'Forecast' }).click()
-  airMode = 'error'
-  await page.locator('.tabs button', { hasText: 'Air' }).click()
-  await page.waitForSelector('.air__unavailable', { timeout: 10000 })
-  if (!(await page.locator('.air__unavailable').innerText()).includes('US AQI')) {
-    failures.push(`${name}: service-error Air state was not rendered`)
-  }
-  if (airRequests !== 3) {
-    failures.push(`${name}: Air should fetch once per opened surface state, got ${airRequests}`)
-  }
-  console.log('air:', JSON.stringify({ airReady, requests: airRequests }))
 
   if (consoleErrors.length) failures.push(`${name}: ${consoleErrors.join('; ')}`)
   await page.close()

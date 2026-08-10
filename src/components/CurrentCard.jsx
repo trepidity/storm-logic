@@ -6,6 +6,7 @@ import CloudMeter from './CloudMeter.jsx'
 import WindDial from './WindDial.jsx'
 import SunArc from './SunArc.jsx'
 import HourlyStrip from './HourlyStrip.jsx'
+import AqiStat from './AqiStat.jsx'
 
 export default function CurrentCard({
   place,
@@ -149,6 +150,7 @@ export default function CurrentCard({
           <dt>Rain chance</dt>
           <dd>{Number.isFinite(today?.precipChance) ? `${today.precipChance}%` : '—'}</dd>
         </div>
+        <AqiStat place={place} />
       </dl>
     </section>
   )
