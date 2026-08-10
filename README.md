@@ -90,20 +90,43 @@ src/
     Forecast/DayRow   10-day list with expandable detail
 netlify/functions/
   forecast.mjs        cached upstream proxy
+  lib/
+    storage.js        localStorage wrapper; saved places, recents, last location, units
+  components/
+    SavedPlaces       saved + recent location chips
 scripts/
-  smoke-test.mjs      renders the built app against a fixture
-  contrast-check.mjs  WCAG audit of every sky theme
+  smoke-test.mjs       renders the built app against a fixture
+  contrast-check.mjs   WCAG audit of every sky theme
+  persistence-test.mjs saved locations, recents, restore-on-reload
 ```
 
-### Design checks
+## Saved locations
 
-Both scripts are dev-only and deliberately not dependencies. To run them:
+Two separate lists, both in `localStorage`:
+
+- **Saved** — explicit. Star the location in the header to keep it; × removes it. Capped at 12.
+- **Recent** — automatic. Anywhere you view lands here, newest first, capped at 6. Starring a
+  recent promotes it to Saved; unstarring demotes it back rather than losing it.
+
+The last viewed location and your °F/°C choice are restored on reload. Places are keyed by
+coordinates rounded to 3 decimals (~110m), so the same city reached by search and by geolocation
+dedupes to one entry.
+
+**First visit:** the default city paints immediately and the app asks for location in the
+background, upgrading if permission is granted. Do not make the first render wait on
+`getCurrentPosition` — an ignored permission prompt never rejects, so the user sits on a spinner
+until the timeout expires. An `onboarded` flag keeps a declined prompt from being re-raised.
+
+`storage.js` falls back to an in-memory store if `localStorage` throws (Safari private browsing,
+storage disabled by policy, quota exceeded); the footer says so when that happens.
+
+### Checks
+
+Dev-only and deliberately not dependencies:
 
 ```bash
 npm i -D playwright pngjs
-npm run build
-node scripts/smoke-test.mjs      # renders + asserts no console errors
-node scripts/contrast-check.mjs  # 152 contrast checks across 8 sky themes
+npm test          # build + all three
 ```
 
 `contrast-check.mjs` samples **rendered pixels**, not declared colours. Every surface here is
@@ -132,5 +155,6 @@ string parts directly instead. Don't replace it with `new Date(iso)`.
 - Hourly strip for the selected day (the hourly data is already being fetched for cloud cover)
 - Radar overlay — RainViewer tiles are free and pair well with Leaflet
 - NWS `/alerts/active` for US severe weather banners
-- Persist pinned locations to `localStorage`
 - Precipitation-type icons driven by `snow_depth` for winter accuracy
+- Drag to reorder saved locations
+- Reverse geocoding so "My location" shows a city name instead of a label

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { searchPlaces, currentPosition } from '../lib/api.js'
+import { searchPlaces } from '../lib/api.js'
 
-export default function LocationSearch({ place, favorites, onSelect, onGeoError }) {
+export default function LocationSearch({ onSelect, onUseMyLocation }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [locating, setLocating] = useState(false)
   const containerRef = useRef(null)
 
   // Debounced geocoding lookup; the in-flight request is aborted on each keystroke.
@@ -50,14 +51,12 @@ export default function LocationSearch({ place, favorites, onSelect, onGeoError 
     setOpen(false)
   }
 
-  async function useMyLocation() {
-    setBusy(true)
+  async function locate() {
+    setLocating(true)
     try {
-      choose(await currentPosition())
-    } catch (err) {
-      onGeoError(err.message)
+      await onUseMyLocation()
     } finally {
-      setBusy(false)
+      setLocating(false)
     }
   }
 
@@ -81,8 +80,14 @@ export default function LocationSearch({ place, favorites, onSelect, onGeoError 
           {busy ? <span className="search__spinner" aria-hidden="true" /> : null}
         </label>
 
-        <button type="button" className="search__geo" onClick={useMyLocation} title="Use my location">
-          <span aria-hidden="true">◎</span>
+        <button
+          type="button"
+          className="search__geo"
+          onClick={locate}
+          disabled={locating}
+          title="Use my location"
+        >
+          <span aria-hidden="true">{locating ? '…' : '◎'}</span>
           <span className="search__geo-text">My location</span>
         </button>
       </div>
@@ -94,22 +99,6 @@ export default function LocationSearch({ place, favorites, onSelect, onGeoError 
               <button type="button" onClick={() => choose(r)}>
                 <strong>{r.name}</strong>
                 <small>{[r.admin1, r.country].filter(Boolean).join(', ')}</small>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      {favorites.length > 1 ? (
-        <ul className="search__pins">
-          {favorites.map((f) => (
-            <li key={f.id}>
-              <button
-                type="button"
-                className={`pin ${f.id === place.id ? 'pin--active' : ''}`}
-                onClick={() => onSelect(f)}
-              >
-                {f.name ?? f.label}
               </button>
             </li>
           ))}

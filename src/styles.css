@@ -415,30 +415,127 @@ a {
   font-size: 0.82rem;
 }
 
-.search__pins {
+.search__geo[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ===== Saved / recent places ============================================ */
+
+.saved {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.saved__group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saved__label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+  min-width: 52px;
+}
+
+.saved__list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 10px;
 }
 
-.pin {
-  padding: 6px 14px;
-  font-size: 0.85rem;
-  color: var(--ink-soft);
+.chip {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
   background: var(--glass);
   border: 1px solid var(--stroke-soft);
   border-radius: 999px;
   backdrop-filter: blur(12px);
   transition:
     background 200ms var(--ease),
-    color 200ms var(--ease);
+    border-color 200ms var(--ease);
 }
 
-.pin--active,
-.pin:hover {
-  color: var(--ink);
+.chip:hover {
   background: var(--glass-strong);
+}
+
+.chip--active {
+  border-color: var(--stroke);
+  background: var(--glass-strong);
+}
+
+.chip__main {
+  padding: 6px 6px 6px 14px;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.chip--muted .chip__main {
+  color: var(--ink-soft);
+}
+
+.chip__remove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  transition: color 160ms var(--ease);
+}
+
+.chip__remove:hover {
+  color: var(--ink);
+}
+
+/* ===== Favorite toggle =================================================== */
+
+.current__identity {
+  min-width: 0;
+}
+
+.current__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.star {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  border-radius: 50%;
+  transition:
+    color 200ms var(--ease),
+    background 200ms var(--ease),
+    transform 200ms var(--ease);
+}
+
+.star:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.star--on {
+  color: var(--sun-glow);
+}
+
+.star--on:hover {
+  transform: scale(1.08);
 }
 
 /* ===== Cards ============================================================= */

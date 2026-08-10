@@ -5,4 +5,6 @@ dist
 .env.local
 .DS_Store
 *.log
+
+# Staging area for files the remote-device bridge cannot delete (git lock files).
 _to_delete

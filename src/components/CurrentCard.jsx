@@ -5,15 +5,37 @@ import CloudMeter from './CloudMeter.jsx'
 import WindDial from './WindDial.jsx'
 import SunArc from './SunArc.jsx'
 
-export default function CurrentCard({ place, current, today, units, timezone }) {
+export default function CurrentCard({
+  place,
+  current,
+  today,
+  units,
+  timezone,
+  isFavorite,
+  onToggleFavorite,
+}) {
   const condition = describeCode(current.weatherCode)
   const nowMinutes = parseLocalIso(current.time)?.minutesOfDay ?? null
 
   return (
     <section className="current" aria-label="Current conditions">
       <header className="current__head">
-        <div>
-          <h1 className="current__place">{place.label}</h1>
+        <div className="current__identity">
+          <div className="current__title">
+            <h1 className="current__place">{place.label}</h1>
+            <button
+              type="button"
+              className={`star ${isFavorite ? 'star--on' : ''}`}
+              onClick={onToggleFavorite}
+              aria-pressed={isFavorite}
+              title={isFavorite ? 'Remove from saved locations' : 'Save this location'}
+            >
+              <span aria-hidden="true">{isFavorite ? '★' : '☆'}</span>
+              <span className="visually-hidden">
+                {isFavorite ? `Remove ${place.name} from saved locations` : `Save ${place.name}`}
+              </span>
+            </button>
+          </div>
           <p className="current__meta">
             Local time {formatClock(current.time)}
             {timezone ? <span className="current__tz"> · {timezone.replace(/_/g, ' ')}</span> : null}
