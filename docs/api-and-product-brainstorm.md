@@ -294,15 +294,16 @@ Recorded 2026-08-10. These override vague brainstorm options where they conflict
 
 | Decision | Rule |
 | --- | --- |
-| **Scale** | **US AQI**, used **globally** (same scale for every place, not local national indices) |
+| **Scale** | **US AQI** (EPA bands) — not European AQI or other national indices |
+| **Coverage** | **U.S. locations only** (CONUS, AK, HI, PR/USVI). Outside coverage: explicit message; **no upstream call** |
 | **Label** | UI copy is exactly **`US AQI`** — not bare “AQI”, not “EPA AQI” as the primary label |
 | **Surface** | Dedicated lazy **Air** tab (own provider boundary), not a Forecast card clutter dump |
-| **Initial scope** | Current US AQI value, category band, source/model-valid time, and explicit **unavailable / no-data** states |
-| **Out of scope (v1)** | Pollen, multi-pollutant dashboard, per-species charts, “explain every pollutant” |
+| **Initial scope** | Current US AQI value, category band, model-valid time (“Valid at”), and explicit **unavailable / no-data / out-of-coverage** states |
+| **Out of scope (v1)** | Pollen, multi-pollutant dashboard, non-U.S. AQI products, per-species charts |
 
-Rationale: Forecast stays the clean daily-weather view. Air gets the same kind of
-boundary Radar and Alerts already have — load when opened, fail honestly, do not
-blur into the main card.
+Rationale: Forecast stays the clean daily-weather view. Air matches Alerts as a
+U.S.-scoped provider surface — load when opened, fail honestly, do not pretend
+global air quality interest.
 
 ### 10.2 Ordered roadmap (execution sequence)
 
@@ -331,3 +332,4 @@ blur into the main card.
 | --- | --- | --- |
 | 1.0 | 2026-08-10 | Initial brainstorm from live API inventory and product discussion |
 | 1.1 | 2026-08-10 | Locked US AQI rules + ordered roadmap (precip integrity → Air tab → precip timing) |
+| 1.2 | 2026-08-10 | Air coverage locked to U.S. only (not global US AQI display) |

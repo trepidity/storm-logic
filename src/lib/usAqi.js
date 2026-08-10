@@ -1,8 +1,9 @@
 /**
  * US AQI (EPA-style) helpers for the Air tab.
  *
- * StormLogic uses the United States AQI scale globally — not European AQI or
- * local national indices. Open-Meteo exposes this as `current.us_aqi`.
+ * Product scope is **U.S. locations only** (CONUS, Alaska, Hawaii, PR/USVI).
+ * Open-Meteo can return `us_aqi` worldwide, but StormLogic does not surface Air
+ * outside U.S. coverage — same honesty pattern as the NWS Alerts tab.
  *
  * Bands (EPA):
  *   0–50   Good
@@ -15,6 +16,27 @@
 
 /** Primary UI label for the scale — keep exact. */
 export const US_AQI_LABEL = 'US AQI'
+
+/**
+ * Approximate U.S. air-coverage footprint (product gate, not a legal boundary).
+ * Open-Meteo will still answer elsewhere; we choose not to ask or show it.
+ */
+export function isUsAqiCoverage(latitude, longitude) {
+  const lat = Number(latitude)
+  const lon = Number(longitude)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false
+
+  // Contiguous United States (incl. light border margin).
+  if (lat >= 24.5 && lat <= 49.5 && lon >= -125 && lon <= -66.5) return true
+  // Alaska
+  if (lat >= 51 && lat <= 72 && lon >= -180 && lon <= -129) return true
+  // Hawaii
+  if (lat >= 18.5 && lat <= 22.5 && lon >= -161 && lon <= -154) return true
+  // Puerto Rico / U.S. Virgin Islands
+  if (lat >= 17.5 && lat <= 18.6 && lon >= -68 && lon <= -64.5) return true
+
+  return false
+}
 
 /**
  * Map a numeric US AQI value to its EPA category band.

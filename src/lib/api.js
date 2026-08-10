@@ -3,7 +3,7 @@ import {
   FORECAST_DAYS,
   buildUpstreamForecastUrl,
 } from './forecastContract.js'
-import { normaliseCurrentAirQuality } from './usAqi.js'
+import { isUsAqiCoverage, normaliseCurrentAirQuality } from './usAqi.js'
 
 export { FORECAST_DAYS }
 
@@ -454,6 +454,10 @@ export async function fetchAlerts({ latitude, longitude }, signal) {
  * payload (lazy Air tab only). Dev hits Open-Meteo AQ directly; production
  * uses the cached /api/air proxy.
  *
+ * Product scope is U.S. coverage only — outside that, throws with
+ * `code: 'coverage'` without calling the upstream (Open-Meteo would answer
+ * worldwide; we choose not to).
+ *
  * Returns null when the upstream payload has no usable us_aqi value (no-data).
  * Throws on transport/service failures so the panel can show an error state.
  *
@@ -485,6 +489,12 @@ export function buildAirQualityUrl({ latitude, longitude }, options = {}) {
 }
 
 export async function fetchAirQuality({ latitude, longitude }, signal, options = {}) {
+  if (!isUsAqiCoverage(latitude, longitude)) {
+    const err = new Error('US AQI is available only for locations in U.S. coverage.')
+    err.code = 'coverage'
+    throw err
+  }
+
   const payload = await getJson(buildAirQualityUrl({ latitude, longitude }, options), signal)
   return normaliseCurrentAirQuality(payload)
 }

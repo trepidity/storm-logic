@@ -19,7 +19,7 @@ account, no billing setup.
 | Next 24 hours | hourly `temperature_2m`, `weather_code`, `precipitation_probability` | Scrollable strip with a temperature trend line |
 | Radar | **RainViewer** (not Open-Meteo) | Separate tab; see below |
 | Active alerts | **NWS** `/alerts/active` | Dedicated, lazy U.S.-coverage tab; see below |
-| Air quality | Open-Meteo AQ `current.us_aqi` | Lazy **Air** tab; **US AQI** scale globally — see below |
+| Air quality | Open-Meteo AQ `current.us_aqi` | Lazy **Air** tab; **US AQI**, **U.S. locations only** — see below |
 | Precip timing | next-24h hourly series | “Starting ~3pm” / “Ending ~6pm” on the current card |
 
 Day/night for the hourly icons is derived from each date's sunrise/sunset rather than requesting
@@ -130,8 +130,10 @@ service.
 Air quality stays out of Forecast entirely. Opening the lazy **Air** tab loads
 current **US AQI** for the selected coordinates from the
 [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api)
-(`current=us_aqi`). The scale label in the UI is exactly **`US AQI`**, used
-**globally** — not European AQI and not local national indices. EPA-style bands:
+(`current=us_aqi`). The scale label in the UI is exactly **`US AQI`**. Scope is
+**U.S. locations only** (CONUS, Alaska, Hawaii, PR/USVI) — outside that footprint
+the tab says so and does not call the upstream (even though Open-Meteo can return
+a US-scale index worldwide). EPA-style bands:
 
 | US AQI | Category |
 | --- | --- |
@@ -181,7 +183,7 @@ src/
     HourlyStrip       hourly columns + temperature trend (next-24 or a full day)
     RadarPanel        animated RainViewer radar (lazy-loaded)
     AlertsPanel       active NWS alerts (lazy-loaded, U.S. coverage)
-    AirPanel          current US AQI (lazy-loaded, global scale)
+    AirPanel          current US AQI (lazy-loaded, U.S. coverage only)
     Forecast/DayRow   10-day list with expandable detail + that day's hourly strip
 netlify/functions/
   forecast.mjs        cached upstream proxy (imports forecastContract — do not re-list vars here)

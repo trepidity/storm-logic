@@ -556,8 +556,10 @@ for (const [name, viewport] of [
   if (!airReady.time?.startsWith('Valid at ')) {
     failures.push(`${name}: Air must describe model time as "Valid at", got ${airReady.time}`)
   }
-  if (!airReady.note.includes('US AQI')) {
-    failures.push(`${name}: Air attribution note must mention US AQI`)
+  if (!airReady.note.includes('US AQI') || !airReady.note.includes('U.S. locations only')) {
+    failures.push(
+      `${name}: Air note must say US AQI for U.S. locations only, got ${JSON.stringify(airReady.note)}`,
+    )
   }
 
   await page.locator('.tabs button', { hasText: 'Forecast' }).click()

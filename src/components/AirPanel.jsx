@@ -84,14 +84,16 @@ export default function AirPanel({ place }) {
       {state.status === 'error' ? (
         <div className="air__unavailable" role="status">
           <p>
-            {US_AQI_LABEL} is temporarily unavailable. Try again in a moment, or check an official
-            air quality source for urgent conditions.
+            {state.errorCode === 'coverage'
+              ? `${US_AQI_LABEL} is available only for locations in U.S. coverage.`
+              : `${US_AQI_LABEL} is temporarily unavailable. Try again in a moment, or check an official air quality source for urgent conditions.`}
           </p>
         </div>
       ) : null}
 
       <p className="air__note">
-        {US_AQI_LABEL} scale used globally. CAMS ENSEMBLE forecast data via Open-Meteo. CC BY 4.0.
+        {US_AQI_LABEL} for U.S. locations only. CAMS ENSEMBLE forecast data via Open-Meteo. CC BY
+        4.0.
       </p>
     </section>
   )
