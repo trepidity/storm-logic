@@ -299,6 +299,8 @@ for (const [name, viewport] of [
     condition: document.querySelector('.current__condition')?.textContent,
     badges: [...document.querySelectorAll('.current .badge')].map((b) => b.textContent.trim()),
     dayCount: document.querySelectorAll('.forecast .day').length,
+    openDayCount: document.querySelectorAll('.forecast .day--open').length,
+    dayDetailLabels: [...document.querySelectorAll('.day__detail-toggle')].map((n) => n.textContent?.replace('⌄', '').trim()),
     cloudNow: document.querySelector('.cloud__percent')?.textContent,
     wind: document.querySelector('.wind__speed')?.textContent,
     windFrom: document.querySelector('.wind__from')?.textContent,
@@ -322,7 +324,6 @@ for (const [name, viewport] of [
       category: document.querySelector('.stat--aqi .stat__note')?.textContent?.trim(),
       count: document.querySelectorAll('.stat').length,
     },
-    dayExplanation: document.querySelector('.day--open .day__explanation')?.textContent?.trim(),
     hailDays: [...document.querySelectorAll('.forecast .day')]
       .map((d, i) => (d.textContent.includes('Hail risk') ? i : null))
       .filter((v) => v !== null),
@@ -392,12 +393,19 @@ for (const [name, viewport] of [
   }
   await page.locator('.search__geo').evaluate((n) => n.blur())
 
-  // The list starts at tomorrow; today lives in the card above it.
+  // Every forecast day is immediately reachable, with a named row-level action
+  // rather than a second disclosure that hides both the remaining days and their details.
   if (report.hasTodayRow) failures.push(`${name}: forecast list still contains a Today row`)
   if (report.firstDayLabel !== 'Tomorrow') {
     failures.push(`${name}: forecast list starts at "${report.firstDayLabel}", expected Tomorrow`)
   }
   if (report.dayCount !== 10) failures.push(`${name}: expected 10 forecast rows, got ${report.dayCount}`)
+  if (report.dayDetailLabels.length !== 10 || report.dayDetailLabels.some((label) => label !== 'Details')) {
+    failures.push(`${name}: every forecast day needs a visible Details action, got ${JSON.stringify(report.dayDetailLabels)}`)
+  }
+  if (report.openDayCount !== 0) {
+    failures.push(`${name}: forecast should not force an open day, got ${report.openDayCount}`)
+  }
   if (!report.locationDisclosure?.includes('BigDataCloud')) {
     failures.push(`${name}: location disclosure is missing or does not name BigDataCloud`)
   }
@@ -439,14 +447,22 @@ for (const [name, viewport] of [
       `${name}: current-card event story must show complete so-far, remaining, total, and dry-time evidence, got ${JSON.stringify(report.precipEvent)}`,
     )
   }
+
+  await page.locator('.forecast .day').first().locator('.day__summary').click()
+  await page.waitForSelector('.day--open .day__detail:not([hidden])', { timeout: 2000 })
+  const dayExplanation = await page.locator('.day--open .day__explanation').textContent()
+  const openDetailLabel = await page.locator('.day--open .day__detail-toggle').textContent()
   // The selected-day explanation is a bounded, numbers-only reading of the
   // already-rendered tomorrow data. This literal fixture assertion catches a
   // missing explanation, a stale day selection, or an explanation that ignores
   // the normalised day/hour values.
-  if (report.dayExplanation !== 'Partly cloudy, high near 88°.') {
+  if (dayExplanation?.trim() !== 'Partly cloudy, high near 88°.') {
     failures.push(
-      `${name}: selected-day explanation should describe fixture tomorrow, got ${report.dayExplanation}`,
+      `${name}: selected-day explanation should describe fixture tomorrow, got ${dayExplanation}`,
     )
+  }
+  if (openDetailLabel?.replace('⌄', '').trim() !== 'Hide details') {
+    failures.push(`${name}: opened day should offer Hide details, got ${openDetailLabel}`)
   }
   // Outdoor planning is contextual to the selected day, not a separate tab.
   // The fixture's Tomorrow is dry from its 5am sunrise through 8pm, with the

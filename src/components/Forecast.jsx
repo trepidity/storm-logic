@@ -14,7 +14,7 @@ import DayRow from './DayRow.jsx'
  */
 export default function Forecast({ days, units, place }) {
   const upcoming = useMemo(() => days.slice(1), [days])
-  const [openIndex, setOpenIndex] = useState(0)
+  const [openIndex, setOpenIndex] = useState(-1)
 
   const [scaleMin, scaleMax] = useMemo(() => {
     const lows = upcoming.map((d) => d.tempMin).filter(Number.isFinite)
@@ -29,7 +29,7 @@ export default function Forecast({ days, units, place }) {
     <section className="forecast" aria-label={`${upcoming.length}-day forecast`}>
       <h2 className="forecast__title">
         {upcoming.length}-day forecast
-        <span className="forecast__hint">Select a day for detail</span>
+        <span className="forecast__hint">Choose a day for details</span>
       </h2>
 
       <ol className="forecast__list">

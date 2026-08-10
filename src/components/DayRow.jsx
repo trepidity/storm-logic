@@ -73,8 +73,9 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
           <span className="day__high">{roundTemp(day.tempMax)}°</span>
         </span>
 
-        <span className="day__chevron" aria-hidden="true">
-          ⌄
+        <span className="day__detail-toggle">
+          <span>{expanded ? 'Hide details' : 'Details'}</span>
+          <span className="day__chevron" aria-hidden="true">⌄</span>
         </span>
       </button>
 
