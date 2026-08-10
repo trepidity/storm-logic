@@ -1,7 +1,7 @@
 ---
 title: "API inventory and product brainstorm"
 date: 2026-08-10
-version: 1.5
+version: 1.6
 status: Draft
 owner: Jared
 category: research
@@ -351,6 +351,10 @@ about unavailable data without creating a second navigation job.
 - Commute helper, vs-normal historical, NWS AFD, drag-reorder places, and
   richer icons — see §6–§8. The first outdoor-event helper is complete; later
   helper flows still need their own explicit product decisions.
+- **Severe desk (storm / tornado / hail tracking)** — research inventory and
+  free-vs-paid API map live in
+  [`docs/severe-desk-radar-hail-tornado.md`](./severe-desk-radar-hail-tornado.md).
+  Not ordered for implementation until product approval.
 
 ---
 
@@ -364,3 +368,4 @@ about unavailable data without creating a second navigation job.
 | 1.3 | 2026-08-10 | Phase 6 locked and delivered: lazy Tomorrow NCEP GEFS middle-80% spread |
 | 1.4 | 2026-08-10 | US AQI moved from a dedicated tab into the current-card stat row |
 | 1.5 | 2026-08-10 | Recorded the implemented outdoor-plan decision helper and its evidence boundary |
+| 1.6 | 2026-08-10 | Linked deferred severe-desk research (storm/tornado/hail + free vs paid APIs) |
