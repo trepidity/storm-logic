@@ -49,7 +49,9 @@ const DAILY_VARS = [
   'wind_direction_10m_dominant',
 ].join(',')
 
-const HOURLY_VARS = ['cloud_cover', 'temperature_2m', 'precipitation_probability'].join(',')
+const HOURLY_VARS = ['cloud_cover', 'temperature_2m', 'precipitation_probability', 'weather_code'].join(
+  ',',
+)
 
 const UNIT_PRESETS = {
   imperial: { temperature_unit: 'fahrenheit', wind_speed_unit: 'mph', precipitation_unit: 'inch' },

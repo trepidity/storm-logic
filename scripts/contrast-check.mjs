@@ -47,7 +47,11 @@ const TARGETS = [
   ['.wind__from', 'wind direction'],
   ['.wind__gusts', 'gusts'],
   ['.sun__label', 'sun caption'],
-  ['.sun__sunshine', 'sunshine share'],
+  ['.sun__value', 'sun time'],
+  ['.hourly__hint', 'hourly hint'],
+  ['.hour__time', 'hour label'],
+  ['.hour__temp', 'hour temperature'],
+  ['.hour__chance--on', 'hour precip chance'],
   ['.stat dt', 'stat caption'],
   ['.stat dd', 'stat value'],
   ['.forecast__hint', 'forecast hint'],
@@ -103,10 +107,16 @@ function makeFixture(code, isDay) {
   const dates = Array.from({ length: 10 }, (_, i) => `2026-08-${String(9 + i).padStart(2, '0')}`)
   const hourlyTime = []
   const hourlyCloud = []
+  const hourlyTemp = []
+  const hourlyChance = []
+  const hourlyCode = []
   for (const d of dates) {
     for (let h = 0; h < 24; h += 1) {
       hourlyTime.push(`${d}T${String(h).padStart(2, '0')}:00`)
       hourlyCloud.push((h * 11) % 101)
+      hourlyTemp.push(60 + (h % 12) * 2)
+      hourlyChance.push((h * 7) % 60)
+      hourlyCode.push(code)
     }
   }
   const fill = (v) => dates.map(() => v)
@@ -153,7 +163,13 @@ function makeFixture(code, isDay) {
       wind_gusts_10m_max: fill(31),
       wind_direction_10m_dominant: fill(180),
     },
-    hourly: { time: hourlyTime, cloud_cover: hourlyCloud },
+    hourly: {
+      time: hourlyTime,
+      cloud_cover: hourlyCloud,
+      temperature_2m: hourlyTemp,
+      precipitation_probability: hourlyChance,
+      weather_code: hourlyCode,
+    },
   }
 }
 

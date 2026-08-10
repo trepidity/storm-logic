@@ -4,11 +4,13 @@ import ConditionBadges from './ConditionBadges.jsx'
 import CloudMeter from './CloudMeter.jsx'
 import WindDial from './WindDial.jsx'
 import SunArc from './SunArc.jsx'
+import HourlyStrip from './HourlyStrip.jsx'
 
 export default function CurrentCard({
   place,
   current,
   today,
+  hours = [],
   units,
   timezone,
   isFavorite,
@@ -86,7 +88,7 @@ export default function CurrentCard({
           />
         </div>
 
-        <div className="panel panel--wide">
+        <div className="panel">
           <span className="metric__label">Sun</span>
           {today ? (
             <SunArc
@@ -98,6 +100,10 @@ export default function CurrentCard({
             />
           ) : null}
         </div>
+      </div>
+
+      <div className="panel panel--hourly">
+        <HourlyStrip hours={hours} units={units} />
       </div>
 
       <dl className="stats">

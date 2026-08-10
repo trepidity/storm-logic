@@ -46,7 +46,7 @@ const DAILY_VARS = [
 
 // Open-Meteo has no daily cloud-cover variable, so we pull it hourly and
 // average it per day ourselves (see summariseCloudCover below).
-const HOURLY_VARS = ['cloud_cover', 'temperature_2m', 'precipitation_probability']
+const HOURLY_VARS = ['cloud_cover', 'temperature_2m', 'precipitation_probability', 'weather_code']
 
 /**
  * In production the request goes through the Netlify function at /api/forecast,
@@ -152,6 +152,49 @@ function summariseCloudCover(hourly, daily) {
   return means
 }
 
+export const HOURLY_WINDOW = 24
+
+/**
+ * The next 24 hours starting from the current hour.
+ *
+ * Day/night is derived from each date's sunrise/sunset rather than requesting
+ * the hourly `is_day` field — one fewer variable that can invalidate the whole
+ * request, and we already have the sun times.
+ */
+function buildHours(payload, days) {
+  const hourly = payload.hourly ?? {}
+  const times = hourly.time ?? []
+  const nowIso = payload.current?.time
+  if (!times.length || typeof nowIso !== 'string') return []
+
+  // ISO prefixes compare correctly as strings, so no Date parsing is needed.
+  const nowKey = nowIso.slice(0, 13)
+  let start = times.findIndex((t) => t.slice(0, 13) >= nowKey)
+  if (start < 0) start = 0
+
+  const sun = new Map(days.map((d) => [d.date, d]))
+
+  return times.slice(start, start + HOURLY_WINDOW).map((time, offset) => {
+    const i = start + offset
+    const date = time.slice(0, 10)
+    const hour = Number(time.slice(11, 13))
+    const day = sun.get(date)
+    const rise = typeof day?.sunrise === 'string' ? Number(day.sunrise.slice(11, 13)) : 6
+    const set = typeof day?.sunset === 'string' ? Number(day.sunset.slice(11, 13)) : 20
+
+    return {
+      time,
+      hour,
+      isNow: offset === 0,
+      temperature: hourly.temperature_2m?.[i] ?? null,
+      weatherCode: hourly.weather_code?.[i] ?? null,
+      precipChance: hourly.precipitation_probability?.[i] ?? null,
+      cloudCover: hourly.cloud_cover?.[i] ?? null,
+      isDay: hour >= rise && hour <= set,
+    }
+  })
+}
+
 /** Reshape the parallel-array payload into one object per day. */
 function normalise(payload) {
   const daily = payload.daily ?? {}
@@ -205,6 +248,7 @@ function normalise(payload) {
   return {
     current,
     days,
+    hours: buildHours(payload, days),
     timezone: payload.timezone ?? null,
     timezoneAbbreviation: payload.timezone_abbreviation ?? null,
     elevation: payload.elevation ?? null,

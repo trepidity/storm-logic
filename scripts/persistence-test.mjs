@@ -20,10 +20,16 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 const dates = Array.from({ length: 10 }, (_, i) => `2026-08-${String(9 + i).padStart(2, '0')}`)
 const hourlyTime = []
 const hourlyCloud = []
+const hourlyTemp = []
+const hourlyChance = []
+const hourlyCode = []
 for (const d of dates) {
   for (let h = 0; h < 24; h += 1) {
     hourlyTime.push(`${d}T${String(h).padStart(2, '0')}:00`)
     hourlyCloud.push((h * 11) % 101)
+    hourlyTemp.push(60 + (h % 12) * 2)
+    hourlyChance.push((h * 7) % 60)
+    hourlyCode.push(2)
   }
 }
 const fill = (v) => dates.map(() => v)
@@ -47,7 +53,13 @@ const FORECAST = {
     precipitation_hours: fill(0), precipitation_probability_max: fill(10),
     wind_speed_10m_max: fill(16), wind_gusts_10m_max: fill(31), wind_direction_10m_dominant: fill(180),
   },
-  hourly: { time: hourlyTime, cloud_cover: hourlyCloud },
+  hourly: {
+    time: hourlyTime,
+    cloud_cover: hourlyCloud,
+    temperature_2m: hourlyTemp,
+    precipitation_probability: hourlyChance,
+    weather_code: hourlyCode,
+  },
 }
 
 const GEOCODE = {

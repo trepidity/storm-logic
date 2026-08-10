@@ -260,6 +260,7 @@ export default function App() {
               place={place}
               current={data.current}
               today={data.days[0]}
+              hours={data.hours}
               units={units}
               timezone={data.timezone}
               isFavorite={isFavorite}

@@ -32,10 +32,16 @@ const dates = Array.from({ length: 10 }, (_, i) => {
 
 const hourlyTime = []
 const hourlyCloud = []
+const hourlyTemp = []
+const hourlyChance = []
+const hourlyCode = []
 for (const date of dates) {
   for (let h = 0; h < 24; h += 1) {
     hourlyTime.push(`${date}T${String(h).padStart(2, '0')}:00`)
     hourlyCloud.push((h * 7 + date.charCodeAt(9) * 3) % 101)
+    hourlyTemp.push(60 + (h % 12) * 2)
+    hourlyChance.push((h * 7) % 60)
+    hourlyCode.push(2)
   }
 }
 
@@ -84,7 +90,13 @@ const fixture = {
     wind_gusts_10m_max: [34, 18, 21, 41, 15, 52, 19, 28, 44, 13],
     wind_direction_10m_dominant: [215, 180, 90, 270, 45, 315, 135, 200, 250, 20],
   },
-  hourly: { time: hourlyTime, cloud_cover: hourlyCloud },
+  hourly: {
+    time: hourlyTime,
+    cloud_cover: hourlyCloud,
+    temperature_2m: hourlyTemp,
+    precipitation_probability: hourlyChance,
+    weather_code: hourlyCode,
+  },
 }
 
 // ---- static server -------------------------------------------------------

@@ -90,16 +90,17 @@ body[data-sky='fog'] {
   --tone-dry: rgb(255 255 255 / 0.8);
 }
 
-/* Night skies are already dark; a heavy tint would just muddy them. */
+/* Night keeps the dark tint too, just lighter. It originally used a white tint
+   on the theory that a dark sky doesn't need one — but the night gradient still
+   reaches #2a3d61 at its base, and three stacked white layers lifted panel
+   backgrounds to mid-slate, which put the accent-coloured text below AA. Glass
+   is tinted dark on every theme, without exception. */
 body[data-sky='night'],
 body[data-sky='night-storm'] {
-  --glass: rgb(255 255 255 / 0.09);
-  --glass-strong: rgb(255 255 255 / 0.15);
-  --surface-1: rgb(255 255 255 / 0.07);
-  --surface-2: rgb(255 255 255 / 0.1);
-  /* White-tinted surfaces lift the backdrop here, so the muted ink has to
-     climb to compensate. */
-  --ink-faint: rgb(244 248 255 / 0.91);
+  --glass: rgb(4 10 22 / 0.32);
+  --glass-strong: rgb(4 10 22 / 0.46);
+  --surface-1: rgb(4 10 22 / 0.26);
+  --surface-2: rgb(4 10 22 / 0.36);
 }
 body[data-sky='night'] {
   --sky-top: #0b1428;
@@ -671,11 +672,19 @@ a {
 
 /* ===== Panels ============================================================ */
 
+/* Three panels, three columns — collapsing straight to one keeps the count a
+   clean divisor at every width, so no panel is ever stranded on its own row. */
 .current__panels {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin: 18px 0;
+  margin: 18px 0 12px;
+}
+
+@media (max-width: 900px) {
+  .current__panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .panel {
@@ -688,18 +697,10 @@ a {
   border-radius: var(--radius-md);
 }
 
-.panel--wide {
-  grid-column: span 2;
-}
-
-@media (max-width: 720px) {
-  .current__panels {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .panel--wide {
-    grid-column: span 1;
-  }
+.panel--hourly {
+  padding: 16px 0 8px;
+  margin-bottom: 18px;
+  overflow: hidden;
 }
 
 .metric__label {
@@ -858,48 +859,60 @@ a {
 
 /* ===== Sun arc =========================================================== */
 
-.sun__svg {
-  width: 100%;
-  height: auto;
-  max-height: 116px;
+.sun {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.sun__path {
-  fill: none;
-  stroke: rgb(255 255 255 / 0.34);
-  stroke-width: 1.6;
-  stroke-dasharray: 4 5;
+.sun__track {
+  position: relative;
+  height: 14px;
+  margin-top: 6px;
 }
 
-.sun__horizon {
-  stroke: rgb(255 255 255 / 0.2);
-  stroke-width: 1;
+.sun__rail,
+.sun__elapsed {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  transform: translateY(-50%);
 }
 
-.sun__marker-core {
-  fill: var(--sun-glow);
+.sun__rail {
+  right: 0;
+  background: rgb(255 255 255 / 0.18);
 }
 
-.sun__marker-halo {
-  fill: var(--sun-glow);
-  opacity: 0.28;
+.sun__elapsed {
+  background: linear-gradient(90deg, rgb(255 212 121 / 0.35), var(--sun-glow));
+  transition: width 900ms var(--ease);
 }
 
-.sun__marker {
-  transition: transform 900ms var(--ease);
+.sun__dot {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: var(--sun-glow);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 4px rgb(255 212 121 / 0.22);
+  transition: left 900ms var(--ease);
 }
 
 .sun__times {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 4px;
+  gap: 10px;
 }
 
 .sun__times > div {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
 }
 
 .sun__middle {
@@ -913,7 +926,7 @@ a {
 }
 
 .sun__label {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -921,14 +934,128 @@ a {
 }
 
 .sun__value {
-  font-size: 0.98rem;
+  font-size: 0.95rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.sun__sunshine {
-  font-size: 0.76rem;
+/* ===== Hourly strip ====================================================== */
+
+.hourly {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hourly__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.hourly__hint {
+  font-size: 0.75rem;
   color: var(--ink-faint);
+}
+
+.hourly__scroller {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--stroke) transparent;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 16px 6px;
+  scroll-snap-type: x proximity;
+}
+
+.hourly__scroller::-webkit-scrollbar {
+  height: 6px;
+}
+
+.hourly__scroller::-webkit-scrollbar-thumb {
+  background: var(--stroke);
+  border-radius: 999px;
+}
+
+.hourly__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: calc(var(--hour-count) * 58px);
+}
+
+.hourly__list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 58px;
+}
+
+.hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 0 6px;
+  border-radius: var(--radius-sm);
+  scroll-snap-align: start;
+}
+
+.hour--now {
+  background: var(--surface-2);
+}
+
+.hour__time {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.hour--now .hour__time {
+  color: var(--ink);
+}
+
+.hour__icon {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.hour__temp {
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reserve the row whether or not there's a value, so the temperature line
+   below sits at a constant offset across every column. */
+.hour__chance {
+  min-height: 1em;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: transparent;
+}
+
+.hour__chance--on {
+  color: var(--tone-rain);
+}
+
+.hourly__spark {
+  width: 100%;
+  height: 24px;
+  pointer-events: none;
+}
+
+.hourly__line {
+  fill: none;
+  stroke: var(--sun-glow);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.5;
+  vector-effect: non-scaling-stroke;
 }
 
 /* ===== Stats ============================================================= */

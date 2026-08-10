@@ -15,6 +15,11 @@ account, no billing setup.
 | Snow | `daily.snowfall_sum` | |
 | Hail | WMO codes **96** and **99** only | See the caveat below |
 | Wind | `wind_speed_10m_max`, `wind_gusts_10m_max`, `wind_direction_10m_dominant` | Rendered as a compass dial |
+| Next 24 hours | hourly `temperature_2m`, `weather_code`, `precipitation_probability` | Scrollable strip with a temperature trend line |
+
+Day/night for the hourly icons is derived from each date's sunrise/sunset rather than requesting
+the hourly `is_day` field — one fewer variable that can invalidate the whole request, and the sun
+times are already on hand.
 
 ### Daily conditions are derived, not reported
 
@@ -111,7 +116,8 @@ src/
     CurrentCard       big reading, badges, panels, stats
     CloudMeter        cloud cover ring
     WindDial          compass with needle + gusts
-    SunArc            sun position along a sunrise→sunset arc
+    SunArc            compact sunrise→sunset track with current position
+    HourlyStrip       next 24 hours + temperature trend line
     Forecast/DayRow   10-day list with expandable detail
 netlify/functions/
   forecast.mjs        cached upstream proxy
@@ -160,7 +166,14 @@ background.
 This caught a real problem: the original palette put muted text at 48% white over a pale daytime
 gradient, landing around **2.5:1** — well below the 4.5:1 AA floor. The fix was to tint the glass
 dark rather than white, raise the muted ink alphas, and add a bottom vignette behind the footer
-(the only text with no card behind it). Worst case is now 4.94:1.
+(the only text with no card behind it).
+
+It caught a second one later. Night themes had kept a *white* glass tint on the theory that a dark
+sky doesn't need darkening — but the night gradient still reaches `#2a3d61` at its base, and three
+stacked translucent white layers lifted panel backgrounds to mid-slate, dropping accent-coloured
+text to 3.1:1. **Glass is tinted dark on every theme, without exception.**
+
+184 checks across 8 themes; worst case is 6.47:1.
 
 **If you change a colour token, re-run it.** The relationship between the tokens is not obvious by
 eye — several combinations that look fine measure below AA.
