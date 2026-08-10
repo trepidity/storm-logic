@@ -12,6 +12,7 @@ import {
   clamp,
 } from '../lib/format.js'
 import ConditionBadges from './ConditionBadges.jsx'
+import HourlyStrip from './HourlyStrip.jsx'
 
 /** Position the day's high/low as a segment of the whole 10-day range. */
 function rangeStyle(day, scaleMin, scaleMax) {
@@ -29,6 +30,8 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
   const rainTotal = (day.rainSum || 0) + (day.showersSum || 0)
   const cloud = Number.isFinite(day.cloudCoverDay) ? day.cloudCoverDay : day.cloudCoverMean
   const panelId = `day-detail-${index}`
+  const dayName = formatDayName(day.date, index)
+  const dayHours = day.hours ?? []
 
   return (
     <li className={`day ${expanded ? 'day--open' : ''}`}>
@@ -40,7 +43,7 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
         aria-controls={panelId}
       >
         <span className="day__name">
-          <strong>{formatDayName(day.date, index)}</strong>
+          <strong>{dayName}</strong>
           <small>{formatShortDate(day.date)}</small>
         </span>
 
@@ -123,6 +126,20 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
             <span className="metric__note">Low {formatTemp(day.feelsMin, units)}</span>
           </div>
         </div>
+
+        {/* Full local calendar day from the already-fetched hourly series —
+            not the rolling next-24 window on the current card. Only mount when
+            expanded so closed rows do not keep 10×24 columns in the DOM. */}
+        {expanded && dayHours.length > 0 ? (
+          <div className="day__hourly">
+            <HourlyStrip
+              hours={dayHours}
+              units={units}
+              label="Hourly"
+              ariaLabel={`Hourly forecast for ${dayName}`}
+            />
+          </div>
+        ) : null}
       </div>
     </li>
   )

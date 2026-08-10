@@ -8,6 +8,7 @@ account, no billing setup.
 | Requirement | Source | Notes |
 | --- | --- | --- |
 | Current temperature | `current.temperature_2m` | Plus apparent temperature, humidity, pressure |
+| Last 24h precip | hourly `precipitation` + `past_days=1` | Client sum of the 24 preceding-hour totals ending at now |
 | 10-day forecast | `daily.*`, `forecast_days=11` | Starts at **tomorrow** — see below. Open-Meteo supports up to 16 |
 | Clouds | `current.cloud_cover`, hourly `cloud_cover` | **Daily mean is computed client-side** — Open-Meteo has no daily cloud variable. Averaged over daylight hours only |
 | Sunrise / sunset | `daily.sunrise`, `daily.sunset` | Plus `daylight_duration` and `sunshine_duration` |
@@ -17,6 +18,7 @@ account, no billing setup.
 | Wind | `wind_speed_10m_max`, `wind_gusts_10m_max`, `wind_direction_10m_dominant` | Rendered as a compass dial |
 | Next 24 hours | hourly `temperature_2m`, `weather_code`, `precipitation_probability` | Scrollable strip with a temperature trend line |
 | Radar | **RainViewer** (not Open-Meteo) | Separate tab; see below |
+| Active alerts | **NWS** `/alerts/active` | Dedicated, lazy U.S.-coverage tab; see below |
 
 Day/night for the hourly icons is derived from each date's sunrise/sunset rather than requesting
 the hourly `is_day` field — one fewer variable that can invalidate the whole request, and the sun
@@ -75,8 +77,9 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-In dev the browser calls `api.open-meteo.com` directly (their CORS headers allow it). In a
-production build the same request goes through `/api/forecast`, the Netlify function — see below.
+In dev the browser calls Open-Meteo and NWS directly. In a production build the
+same requests go through `/api/forecast` and `/api/alerts`, the Netlify functions
+— see below.
 
 ## Deploying to Netlify
 
@@ -104,6 +107,22 @@ also rounded to 2 decimals (~1 km) so nearby visitors share a cache entry.
 **Order matters in `netlify.toml`:** the `/api/*` redirect must come before the SPA catch-all, or
 `/index.html` swallows the function route.
 
+## Alerts
+
+Alerts stay out of Forecast entirely. Opening the lazy **Alerts** tab calls the
+National Weather Service's active-alerts endpoint for the selected coordinates
+and renders official watches, warnings, and advisories with their effective and
+expiry times. It is intentionally U.S.-coverage only; outside that coverage the
+tab says so plainly, and a temporary service failure never masquerades as “no
+alerts.”
+
+`netlify/functions/alerts.mjs` keeps the NWS response at the CDN for 30 seconds
+(`s-maxage=30`, with one minute stale-while-revalidate). Coordinates are rounded
+to two decimals, matching the forecast proxy's nearby-place cache buckets. The
+NWS asks alert clients not to poll more often than every 30 seconds, so that
+short cache is both the freshness boundary and a courtesy to the upstream
+service.
+
 ## Licensing — read before shipping
 
 Open-Meteo's free tier is **non-commercial**. Data is CC BY 4.0, so the attribution in the footer is
@@ -115,12 +134,13 @@ required, not decorative. If this becomes a commercial product, you need a paid 
 ```
 src/
   lib/
-    api.js            fetch + reshape Open-Meteo's parallel arrays into per-day objects
-    weatherCodes.js   WMO code table; the only place hail/snow/rain classification happens
-    daySummary.js     derives each day's label from its numbers, not its weather code
-    storage.js        localStorage wrapper; saved places, recents, last location, units
-    radar.js          RainViewer frame index + tile URL construction
-    format.js         units, compass points, local-time parsing
+    forecastContract.js  Open-Meteo request shape (vars, days, units) — shared by browser + proxy
+    api.js               fetch + reshape Open-Meteo's parallel arrays into per-day objects
+    weatherCodes.js      WMO code table; the only place hail/snow/rain classification happens
+    daySummary.js        derives each day's label from its numbers, not its weather code
+    storage.js           localStorage wrapper; saved places, recents, last location, units
+    radar.js             RainViewer frame index + tile URL construction
+    format.js            units, compass points, local-time parsing
   components/
     LocationSearch    geocoding search + geolocation
     SavedPlaces       saved + recent location chips
@@ -128,18 +148,48 @@ src/
     CloudMeter        cloud cover ring
     WindDial          compass with needle + gusts
     SunArc            compact sunrise→sunset track with current position
-    HourlyStrip       next 24 hours + temperature trend line
+    HourlyStrip       hourly columns + temperature trend (next-24 or a full day)
     RadarPanel        animated RainViewer radar (lazy-loaded)
-    Forecast/DayRow   10-day list with expandable detail
+    AlertsPanel       active NWS alerts (lazy-loaded, U.S. coverage)
+    Forecast/DayRow   10-day list with expandable detail + that day's hourly strip
 netlify/functions/
-  forecast.mjs        cached upstream proxy
+  forecast.mjs        cached upstream proxy (imports forecastContract — do not re-list vars here)
+  alerts.mjs          short-lived cached NWS active-alerts proxy
 scripts/
-  summary-test.mjs     day-condition logic (pure, no browser)
-  smoke-test.mjs       renders the built app against a fixture
-  contrast-check.mjs   WCAG audit of every sky theme
-  persistence-test.mjs saved locations, recents, restore-on-reload
-  radar-test.mjs       radar frame logic + tab behaviour
+  summary-test.mjs            day-condition logic (pure, no browser)
+  forecast-contract-test.mjs  captures real dev + proxy upstream URLs vs golden fields
+  reverse-geocode-test.mjs    names a GPS fix; falls back to "My location" on failure
+  alerts-proxy-test.mjs       NWS point/cache/coverage behaviour through the real handler
+  smoke-test.mjs              renders the built app against a fixture
+  contrast-check.mjs          WCAG audit of every sky theme
+  persistence-test.mjs        saved locations, recents, restore-on-reload
+  radar-test.mjs              radar frame logic + tab behaviour
 ```
+
+### Upstream request contract
+
+`src/lib/forecastContract.js` is the only place that lists Open-Meteo `current` /
+`daily` / `hourly` variables and `forecast_days`. The browser (dev direct call)
+and `netlify/functions/forecast.mjs` (prod proxy) both build from
+`buildUpstreamForecastParams`. Coordinate precision still differs on purpose —
+4 decimals in dev, 2 in the proxy so nearby visitors share a CDN cache entry —
+but the field lists must never diverge.
+
+`scripts/forecast-contract-test.mjs` asserts consumer behaviour, not module shape:
+it builds the browser direct URL via `buildForecastUrl(..., { mode: 'direct' })`
+and captures the URL the Netlify handler actually `fetch`es, then compares both
+to the golden field lists.
+
+### Reverse geocoding
+
+Open-Meteo has no reverse endpoint (search + get-by-id only). After geolocation
+succeeds, `currentPosition` calls BigDataCloud's keyless
+`reverse-geocode-client` to name the fix. The GPS coordinates are kept — only
+the display name/label change — so the place key still reflects the actual
+position. The browser sends those coordinates and its request IP directly to
+BigDataCloud; that disclosure appears beside the location control. The lookup
+has a two-second deadline, so a slow or failed reverse service still loads the
+weather under the generic "My location" label.
 
 ## Radar
 
@@ -169,8 +219,10 @@ tests use regexes.
 
 ## Layout
 
-Everything navigational — brand, tabs, search, My location, units, refresh — sits on **one header
-row**, with saved and recent locations on a single scrolling line below it. This was previously
+Everything navigational — brand, tabs, search (with icon-only locate), units, refresh — sits on
+**one header row**, with saved and recent locations on a single scrolling line below it. Locate is
+icon-only (`◎`) so the search field stays elastic; the BigDataCloud privacy line expands on
+hover/focus/locating rather than always claiming a row. This was previously
 four stacked rows and pushed the weather itself off the top of a laptop screen. The search is the
 only elastic item in the row; below 900px the wordmark drops, below 680px the search wraps to its
 own line.
@@ -196,8 +248,11 @@ background, upgrading if permission is granted. Do not make the first render wai
 `getCurrentPosition` — an ignored permission prompt never rejects, so the user sits on a spinner
 until the timeout expires. An `onboarded` flag keeps a declined prompt from being re-raised.
 
-`storage.js` falls back to an in-memory store if `localStorage` throws (Safari private browsing,
-storage disabled by policy, quota exceeded); the footer says so when that happens.
+`storage.js` falls back to an in-memory store if `localStorage` throws at startup
+(Safari private browsing, storage disabled by policy). The footer warns only in
+that case (`isPersistent` is a startup probe). If a later write fails (quota or
+revocation mid-session), that value is kept in memory for the rest of the session
+but the footer will not flip to session-only mode.
 
 ### Checks
 
@@ -214,7 +269,7 @@ after installing packages (or set `CHROMIUM_PATH` to use a system-provided binar
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # summary + build + smoke + contrast + persistence + radar
+npm test          # summary + contract + reverse + alerts + build + smoke + contrast + persistence + radar
 ```
 
 `contrast-check.mjs` samples **rendered pixels**, not declared colours. Every surface here is
@@ -233,7 +288,7 @@ sky doesn't need darkening — but the night gradient still reaches `#2a3d61` at
 stacked translucent white layers lifted panel backgrounds to mid-slate, dropping accent-coloured
 text to 3.1:1. **Glass is tinted dark on every theme, without exception.**
 
-232 checks across 8 themes, including a second pass with the Radar tab open; worst case is 5.63:1.
+320 checks across 8 themes, including separate passes with the Radar and Alerts tabs open; every measured role meets AA.
 
 One harness bug worth knowing: measuring injects `color: transparent` and removes it moments later,
 so any element with a CSS colour *transition* gets read mid-animation at a fractional alpha and
@@ -250,10 +305,22 @@ With `timezone=auto`, Open-Meteo returns local wall-clock strings with **no offs
 for Tokyo viewed from Chicago shows the wrong sunrise. `parseLocalIso()` in `format.js` reads the
 string parts directly instead. Don't replace it with `new Date(iso)`.
 
+## Selected-day hourly
+
+The hourly series is already requested for daylight cloud averages. `api.js`
+indexes every step by local calendar date and attaches `day.hours` (00–23) to
+each day object. Expanding a forecast row renders that strip; the current card
+still uses the separate rolling **next 24 hours** window from `data.hours`.
+
+## Last 24h precipitation
+
+`past_days=1` and hourly `precipitation` are on the shared forecast contract.
+`sumPrecipLast24h` totals the 24 preceding-hour sums ending at the current hour
+and the current card shows it as **Last 24h**. Because `past_days` also prepends
+yesterday to `daily.time`, normalise drops any date before today so `days[0]`
+stays the card/list anchor.
+
 ## Possible next steps
 
-- Hourly strip for the selected day (the hourly data is already being fetched for cloud cover)
-- NWS `/alerts/active` for US severe weather banners
 - Precipitation-type icons driven by `snow_depth` for winter accuracy
 - Drag to reorder saved locations
-- Reverse geocoding so "My location" shows a city name instead of a label

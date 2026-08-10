@@ -28,6 +28,7 @@ import Forecast from './components/Forecast.jsx'
 // heavy on mobile data. Lazy so none of that is paid for unless the tab is
 // opened; the forecast view is what nearly every visit is actually for.
 const RadarPanel = lazy(() => import('./components/RadarPanel.jsx'))
+const AlertsPanel = lazy(() => import('./components/AlertsPanel.jsx'))
 
 const DEFAULT_PLACE = normalisePlace({
   name: 'Chicago',
@@ -213,6 +214,7 @@ export default function App() {
           {[
             ['forecast', 'Forecast'],
             ['radar', 'Radar'],
+            ['alerts', 'Alerts'],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -291,6 +293,7 @@ export default function App() {
               current={data.current}
               today={data.days[0]}
               hours={data.hours}
+              precipLast24h={data.precipLast24h}
               units={units}
               timezone={data.timezone}
               isFavorite={isFavorite}
@@ -316,6 +319,21 @@ export default function App() {
               {/* Keyed on the place so switching location rebuilds cleanly
                   rather than trying to reconcile a live Leaflet instance. */}
               <RadarPanel key={place.key} place={place} />
+            </Suspense>
+          </div>
+        ) : null}
+
+        {tab === 'alerts' && place ? (
+          <div role="tabpanel" id="panel-alerts" aria-labelledby="tab-alerts">
+            <Suspense
+              fallback={
+                <div className="state state--loading">
+                  <span className="state__spinner" aria-hidden="true" />
+                  <p>Loading alerts…</p>
+                </div>
+              }
+            >
+              <AlertsPanel key={place.key} place={place} />
             </Suspense>
           </div>
         ) : null}

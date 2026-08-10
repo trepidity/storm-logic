@@ -1,80 +1,46 @@
 import { UNIT_PRESETS } from './format.js'
+import {
+  FORECAST_DAYS,
+  buildUpstreamForecastUrl,
+} from './forecastContract.js'
 
-const OPEN_METEO_FORECAST = 'https://api.open-meteo.com/v1/forecast'
+export { FORECAST_DAYS }
+
+/** Hours included in the "last 24 hours" precipitation total. */
+export const PRECIP_LOOKBACK_HOURS = 24
+
 const OPEN_METEO_GEOCODE = 'https://geocoding-api.open-meteo.com/v1/search'
-
-/**
- * Eleven, not ten. The list skips today (the current-conditions card covers it),
- * so one extra day keeps a full ten showing ahead. days[0] is still used — it
- * feeds the card's high/low, sun times, UV and rain chance.
- */
-export const FORECAST_DAYS = 11
-
-const CURRENT_VARS = [
-  'temperature_2m',
-  'relative_humidity_2m',
-  'apparent_temperature',
-  'is_day',
-  'precipitation',
-  'rain',
-  'showers',
-  'snowfall',
-  'weather_code',
-  'cloud_cover',
-  'pressure_msl',
-  'wind_speed_10m',
-  'wind_direction_10m',
-  'wind_gusts_10m',
-]
-
-const DAILY_VARS = [
-  'weather_code',
-  'temperature_2m_max',
-  'temperature_2m_min',
-  'apparent_temperature_max',
-  'apparent_temperature_min',
-  'sunrise',
-  'sunset',
-  'daylight_duration',
-  'sunshine_duration',
-  'uv_index_max',
-  'precipitation_sum',
-  'rain_sum',
-  'showers_sum',
-  'snowfall_sum',
-  'precipitation_hours',
-  'precipitation_probability_max',
-  'wind_speed_10m_max',
-  'wind_gusts_10m_max',
-  'wind_direction_10m_dominant',
-]
-
-// Open-Meteo has no daily cloud-cover variable, so we pull it hourly and
-// average it per day ourselves (see summariseCloudCover below).
-const HOURLY_VARS = ['cloud_cover', 'temperature_2m', 'precipitation_probability', 'weather_code']
+// Open-Meteo has search + get-by-id only — no reverse. This client endpoint is
+// keyless and CORS-friendly; used solely to name a geolocated fix.
+const REVERSE_GEOCODE = 'https://api.bigdatacloud.net/data/reverse-geocode-client'
+const NWS_ACTIVE_ALERTS = 'https://api.weather.gov/alerts/active'
+// A city name is helpful, but never worth holding the location flow hostage.
+const REVERSE_GEOCODE_TIMEOUT_MS = 2_000
 
 /**
  * In production the request goes through the Netlify function at /api/forecast,
  * which adds shared CDN caching so repeat visitors don't each hit Open-Meteo.
  * In `vite dev` there is no function runtime, so we call the API directly —
  * Open-Meteo sends permissive CORS headers, so this works from the browser.
+ *
+ * Upstream field lists live in forecastContract.js (shared with the proxy).
+ *
+ * @param {{ latitude: number, longitude: number, unitId: string }} opts
+ * @param {{ mode?: 'direct' | 'proxy' }} [options]
+ *   Defaults from Vite's import.meta.env.DEV. Pass `mode` explicitly in tests
+ *   so Node can exercise the direct path without a Vite runtime.
  */
-function buildForecastUrl({ latitude, longitude, unitId }) {
+export function buildForecastUrl({ latitude, longitude, unitId }, options = {}) {
   const units = UNIT_PRESETS[unitId] ?? UNIT_PRESETS.imperial
-  const params = new URLSearchParams({
-    latitude: latitude.toFixed(4),
-    longitude: longitude.toFixed(4),
-    current: CURRENT_VARS.join(','),
-    daily: DAILY_VARS.join(','),
-    hourly: HOURLY_VARS.join(','),
-    timezone: 'auto',
-    forecast_days: String(FORECAST_DAYS),
-    temperature_unit: units.temperature_unit,
-    wind_speed_unit: units.wind_speed_unit,
-    precipitation_unit: units.precipitation_unit,
-  })
+  const mode =
+    options.mode ??
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV
+      ? 'direct'
+      : 'proxy')
 
-  if (import.meta.env.DEV) return `${OPEN_METEO_FORECAST}?${params}`
+  if (mode === 'direct') {
+    return buildUpstreamForecastUrl({ latitude, longitude, unitId, coordDecimals: 4 })
+  }
 
   return `/api/forecast?${new URLSearchParams({
     lat: latitude.toFixed(4),
@@ -93,9 +59,33 @@ async function getJson(url, signal) {
     } catch {
       /* response wasn't JSON — fall back to the status line */
     }
-    throw new Error(detail || `Request failed (${res.status})`)
+    const error = new Error(detail || `Request failed (${res.status})`)
+    error.status = res.status
+    throw error
   }
   return res.json()
+}
+
+/**
+ * Combine an optional caller abort with a local deadline. The browser fetch
+ * observes the returned signal; clearing both registrations avoids keeping a
+ * completed lookup alive in the background.
+ */
+function boundedSignal(parent, timeoutMs) {
+  const controller = new AbortController()
+  const abort = () => controller.abort()
+  const timer = setTimeout(abort, timeoutMs)
+
+  if (parent?.aborted) abort()
+  else parent?.addEventListener?.('abort', abort, { once: true })
+
+  return {
+    signal: controller.signal,
+    dispose() {
+      clearTimeout(timer)
+      parent?.removeEventListener?.('abort', abort)
+    },
+  }
 }
 
 /**
@@ -160,13 +150,59 @@ function summariseCloudCover(hourly, daily) {
 export const HOURLY_WINDOW = 24
 
 /**
- * The next 24 hours starting from the current hour.
- *
- * Day/night is derived from each date's sunrise/sunset rather than requesting
- * the hourly `is_day` field — one fewer variable that can invalidate the whole
- * request, and we already have the sun times.
+ * One hourly column. Day/night comes from that date's sunrise/sunset rather
+ * than requesting hourly `is_day` — one fewer variable that can invalidate the
+ * whole request, and the sun times are already on hand.
  */
-function buildHours(payload, days) {
+function hourEntry(hourly, index, sunByDate, { isNow = false } = {}) {
+  const time = hourly.time[index]
+  if (typeof time !== 'string') return null
+
+  const date = time.slice(0, 10)
+  const hour = Number(time.slice(11, 13))
+  const day = sunByDate.get(date)
+  const rise = typeof day?.sunrise === 'string' ? Number(day.sunrise.slice(11, 13)) : 6
+  const set = typeof day?.sunset === 'string' ? Number(day.sunset.slice(11, 13)) : 20
+
+  return {
+    time,
+    hour,
+    isNow,
+    temperature: hourly.temperature_2m?.[index] ?? null,
+    weatherCode: hourly.weather_code?.[index] ?? null,
+    precipChance: hourly.precipitation_probability?.[index] ?? null,
+    cloudCover: hourly.cloud_cover?.[index] ?? null,
+    isDay: hour >= rise && hour <= set,
+  }
+}
+
+/**
+ * Index every hourly step by local calendar date (YYYY-MM-DD).
+ * The forecast already requests the full multi-day hourly series for cloud
+ * cover; retaining it here powers the per-day strip without another request.
+ */
+function buildHoursByDate(payload, days) {
+  const hourly = payload.hourly ?? {}
+  const times = hourly.time ?? []
+  const sunByDate = new Map(days.map((d) => [d.date, d]))
+  const byDate = new Map()
+
+  for (let i = 0; i < times.length; i += 1) {
+    const entry = hourEntry(hourly, i, sunByDate)
+    if (!entry) continue
+    const date = entry.time.slice(0, 10)
+    const bucket = byDate.get(date)
+    if (bucket) bucket.push(entry)
+    else byDate.set(date, [entry])
+  }
+  return byDate
+}
+
+/**
+ * The rolling next 24 hours starting from the current hour — feeds the card,
+ * not the day list. Future days use their full local day from hoursByDate.
+ */
+function buildNextHours(payload, days) {
   const hourly = payload.hourly ?? {}
   const times = hourly.time ?? []
   const nowIso = payload.current?.time
@@ -177,27 +213,69 @@ function buildHours(payload, days) {
   let start = times.findIndex((t) => t.slice(0, 13) >= nowKey)
   if (start < 0) start = 0
 
-  const sun = new Map(days.map((d) => [d.date, d]))
-
-  return times.slice(start, start + HOURLY_WINDOW).map((time, offset) => {
+  const sunByDate = new Map(days.map((d) => [d.date, d]))
+  const out = []
+  for (let offset = 0; offset < HOURLY_WINDOW; offset += 1) {
     const i = start + offset
-    const date = time.slice(0, 10)
-    const hour = Number(time.slice(11, 13))
-    const day = sun.get(date)
-    const rise = typeof day?.sunrise === 'string' ? Number(day.sunrise.slice(11, 13)) : 6
-    const set = typeof day?.sunset === 'string' ? Number(day.sunset.slice(11, 13)) : 20
+    if (i >= times.length) break
+    const entry = hourEntry(hourly, i, sunByDate, { isNow: offset === 0 })
+    if (entry) out.push(entry)
+  }
+  return out
+}
 
-    return {
-      time,
-      hour,
-      isNow: offset === 0,
-      temperature: hourly.temperature_2m?.[i] ?? null,
-      weatherCode: hourly.weather_code?.[i] ?? null,
-      precipChance: hourly.precipitation_probability?.[i] ?? null,
-      cloudCover: hourly.cloud_cover?.[i] ?? null,
-      isDay: hour >= rise && hour <= set,
-    }
-  })
+/**
+ * Sum hourly precipitation ending at the current hour (inclusive).
+ * Each Open-Meteo hourly `precipitation` value is the preceding-hour total.
+ * Requires past_days on the request so enough history exists before "now".
+ */
+export function sumPrecipLast24h(payload, lookback = PRECIP_LOOKBACK_HOURS) {
+  const times = payload?.hourly?.time ?? []
+  const values = payload?.hourly?.precipitation ?? []
+  const nowIso = payload?.current?.time
+  if (!times.length || typeof nowIso !== 'string') return null
+
+  const nowKey = nowIso.slice(0, 13)
+  let end = -1
+  for (let i = 0; i < times.length; i += 1) {
+    if (typeof times[i] === 'string' && times[i].slice(0, 13) <= nowKey) end = i
+  }
+  if (end < 0) return null
+
+  const start = Math.max(0, end - (lookback - 1))
+  let sum = 0
+  let counted = 0
+  for (let i = start; i <= end; i += 1) {
+    const value = values[i]
+    if (!Number.isFinite(value)) continue
+    sum += value
+    counted += 1
+  }
+  return counted > 0 ? sum : null
+}
+
+/**
+ * past_days prepends yesterday to daily.time. The rest of the app treats
+ * days[0] as today (card high/low, forecast list offset) — drop any dates
+ * before the current local calendar day, then keep FORECAST_DAYS ahead.
+ */
+function forecastDayIndexes(daily, currentTime) {
+  const times = daily?.time ?? []
+  if (!times.length) return []
+
+  const todayKey =
+    typeof currentTime === 'string' && currentTime.length >= 10
+      ? currentTime.slice(0, 10)
+      : times[0]
+
+  let start = times.findIndex((date) => date >= todayKey)
+  if (start < 0) start = 0
+
+  const indexes = []
+  for (let i = start; i < times.length && indexes.length < FORECAST_DAYS; i += 1) {
+    indexes.push(i)
+  }
+  return indexes
 }
 
 /** Reshape the parallel-array payload into one object per day. */
@@ -205,30 +283,41 @@ function normalise(payload) {
   const daily = payload.daily ?? {}
   const cloudByDate = summariseCloudCover(payload.hourly, daily)
   const pick = (key, i) => daily[key]?.[i] ?? null
+  const dayIndexes = forecastDayIndexes(daily, payload.current?.time)
 
-  const days = (daily.time ?? []).map((date, i) => ({
-    date,
-    weatherCode: pick('weather_code', i),
-    tempMax: pick('temperature_2m_max', i),
-    tempMin: pick('temperature_2m_min', i),
-    feelsMax: pick('apparent_temperature_max', i),
-    feelsMin: pick('apparent_temperature_min', i),
-    sunrise: pick('sunrise', i),
-    sunset: pick('sunset', i),
-    daylightSeconds: pick('daylight_duration', i),
-    sunshineSeconds: pick('sunshine_duration', i),
-    uvIndexMax: pick('uv_index_max', i),
-    precipSum: pick('precipitation_sum', i),
-    rainSum: pick('rain_sum', i),
-    showersSum: pick('showers_sum', i),
-    snowSum: pick('snowfall_sum', i),
-    precipHours: pick('precipitation_hours', i),
-    precipChance: pick('precipitation_probability_max', i),
-    windMax: pick('wind_speed_10m_max', i),
-    gustMax: pick('wind_gusts_10m_max', i),
-    windDirection: pick('wind_direction_10m_dominant', i),
-    cloudCoverMean: cloudByDate.get(date)?.all ?? null,
-    cloudCoverDay: cloudByDate.get(date)?.day ?? cloudByDate.get(date)?.all ?? null,
+  // Build days without hours first so sun times are available for day/night.
+  const daysBase = dayIndexes.map((i) => {
+    const date = daily.time[i]
+    return {
+      date,
+      weatherCode: pick('weather_code', i),
+      tempMax: pick('temperature_2m_max', i),
+      tempMin: pick('temperature_2m_min', i),
+      feelsMax: pick('apparent_temperature_max', i),
+      feelsMin: pick('apparent_temperature_min', i),
+      sunrise: pick('sunrise', i),
+      sunset: pick('sunset', i),
+      daylightSeconds: pick('daylight_duration', i),
+      sunshineSeconds: pick('sunshine_duration', i),
+      uvIndexMax: pick('uv_index_max', i),
+      precipSum: pick('precipitation_sum', i),
+      rainSum: pick('rain_sum', i),
+      showersSum: pick('showers_sum', i),
+      snowSum: pick('snowfall_sum', i),
+      precipHours: pick('precipitation_hours', i),
+      precipChance: pick('precipitation_probability_max', i),
+      windMax: pick('wind_speed_10m_max', i),
+      gustMax: pick('wind_gusts_10m_max', i),
+      windDirection: pick('wind_direction_10m_dominant', i),
+      cloudCoverMean: cloudByDate.get(date)?.all ?? null,
+      cloudCoverDay: cloudByDate.get(date)?.day ?? cloudByDate.get(date)?.all ?? null,
+    }
+  })
+
+  const hoursByDate = buildHoursByDate(payload, daysBase)
+  const days = daysBase.map((day) => ({
+    ...day,
+    hours: hoursByDate.get(day.date) ?? [],
   }))
 
   const c = payload.current ?? {}
@@ -253,7 +342,8 @@ function normalise(payload) {
   return {
     current,
     days,
-    hours: buildHours(payload, days),
+    hours: buildNextHours(payload, days),
+    precipLast24h: sumPrecipLast24h(payload),
     timezone: payload.timezone ?? null,
     timezoneAbbreviation: payload.timezone_abbreviation ?? null,
     elevation: payload.elevation ?? null,
@@ -264,6 +354,64 @@ function normalise(payload) {
 export async function fetchForecast({ latitude, longitude, unitId }, signal) {
   const payload = await getJson(buildForecastUrl({ latitude, longitude, unitId }), signal)
   return normalise(payload)
+}
+
+/**
+ * Active NWS alerts are their own provider and deliberately stay out of the
+ * forecast payload. In dev there is no Netlify function runtime; production
+ * uses the cached proxy so the browser never hammers the NWS service directly.
+ */
+function buildAlertsUrl({ latitude, longitude }) {
+  const point = `${latitude.toFixed(4)},${longitude.toFixed(4)}`
+  const direct =
+    typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV
+
+  if (direct) return `${NWS_ACTIVE_ALERTS}?${new URLSearchParams({ point })}`
+  return `/api/alerts?${new URLSearchParams({ lat: latitude.toFixed(4), lon: longitude.toFixed(4) })}`
+}
+
+function normaliseAlerts(payload) {
+  return (payload.features ?? [])
+    .filter((feature) => {
+      const props = feature?.properties ?? {}
+      // /active should already enforce this, but a stale edge response or a
+      // cancellation message must never be presented as a live warning.
+      if (String(props.messageType ?? '').toLowerCase() === 'cancel') return false
+      const expiry = Date.parse(props.expires ?? props.ends ?? '')
+      return !Number.isFinite(expiry) || expiry > Date.now()
+    })
+    .map((feature, index) => {
+      const props = feature?.properties ?? {}
+      return {
+        id: feature?.id ?? props.id ?? `${props.event ?? 'alert'}-${props.effective ?? index}`,
+        event: props.event ?? 'Weather alert',
+        headline: props.headline ?? props.event ?? 'Weather alert',
+        severity: props.severity ?? 'Unknown',
+        urgency: props.urgency ?? null,
+        certainty: props.certainty ?? null,
+        effective: props.effective ?? props.onset ?? null,
+        expires: props.expires ?? props.ends ?? null,
+        area: props.areaDesc ?? null,
+        description: props.description ?? null,
+        instruction: props.instruction ?? null,
+        sourceUrl: props['@id'] ?? null,
+      }
+    })
+}
+
+export async function fetchAlerts({ latitude, longitude }, signal) {
+  try {
+    const payload = await getJson(buildAlertsUrl({ latitude, longitude }), signal)
+    return normaliseAlerts(payload)
+  } catch (err) {
+    // NWS rejects points outside its U.S. coverage. Keep that expected domain
+    // state distinct from a temporary service failure without coupling the UI
+    // to an upstream error string.
+    if (err.status === 400 || err.status === 404 || err.status === 422) {
+      err.code = 'coverage'
+    }
+    throw err
+  }
 }
 
 export async function searchPlaces(query, signal) {
@@ -290,7 +438,52 @@ export async function searchPlaces(query, signal) {
   }))
 }
 
-export function currentPosition() {
+/** BigDataCloud appends " (the)" to some country names; strip for readable labels. */
+function cleanCountryName(name) {
+  if (typeof name !== 'string' || !name) return ''
+  return name.replace(/\s*\(the\)\s*$/i, '').trim()
+}
+
+/**
+ * Name a lat/lon fix. Keeps the GPS coordinates (not the city centroid) so the
+ * place key stays at the actual position.
+ *
+ * Returns null when the service has no usable place name — caller falls back.
+ */
+export async function reverseGeocode(latitude, longitude, signal) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    localityLanguage: 'en',
+  })
+  const deadline = boundedSignal(signal, REVERSE_GEOCODE_TIMEOUT_MS)
+  let data
+  try {
+    data = await getJson(`${REVERSE_GEOCODE}?${params}`, deadline.signal)
+  } finally {
+    deadline.dispose()
+  }
+
+  const name = data.city || data.locality || data.principalSubdivision || ''
+  if (!name) return null
+
+  const admin1 = data.principalSubdivision ?? ''
+  const country = cleanCountryName(data.countryName)
+
+  return {
+    name,
+    label: [name, admin1, country].filter(Boolean).join(', '),
+    latitude,
+    longitude,
+    admin1,
+    country,
+    countryCode: data.countryCode ?? '',
+  }
+}
+
+function readBrowserPosition() {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) {
       reject(new Error('This browser does not support location access.'))
@@ -301,8 +494,6 @@ export function currentPosition() {
         resolve({
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
-          label: 'My location',
-          id: 'geo',
         }),
       (err) =>
         reject(
@@ -315,4 +506,26 @@ export function currentPosition() {
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 },
     )
   })
+}
+
+/**
+ * Resolve the browser fix and reverse-geocode it to a city name.
+ * On reverse failure the coordinates still win with a generic label — weather
+ * works either way; only the display name is weaker.
+ */
+export async function currentPosition(signal) {
+  const coords = await readBrowserPosition()
+  try {
+    const named = await reverseGeocode(coords.latitude, coords.longitude, signal)
+    if (named) return { ...named, id: 'geo' }
+  } catch {
+    /* reverse is best-effort */
+  }
+  return {
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+    name: 'My location',
+    label: 'My location',
+    id: 'geo',
+  }
 }

@@ -20,7 +20,8 @@ import { readFile } from 'node:fs/promises'
 import { extname, join, normalize } from 'node:path'
 
 const ROOT = new URL('../dist/', import.meta.url).pathname
-const PORT = 4174
+// Let the OS choose a free port so parallel/local test runs never collide.
+const PORT = 0
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.map': 'application/json' }
 
 // AA: 4.5 for body text, 3.0 for large text (>=24px, or >=18.66px bold).
@@ -37,6 +38,14 @@ const THEMES = [
   { name: 'night', code: 0, isDay: 0 },
   { name: 'night-storm', code: 95, isDay: 0 },
 ]
+const requestedThemeNames = new Set(process.argv.slice(2))
+const themesToCheck = requestedThemeNames.size
+  ? THEMES.filter((theme) => requestedThemeNames.has(theme.name))
+  : THEMES
+
+if (requestedThemeNames.size && themesToCheck.length !== requestedThemeNames.size) {
+  throw new Error(`Unknown contrast theme: ${[...requestedThemeNames].join(', ')}`)
+}
 
 const TARGETS = [
   ['.current__meta', 'location timezone line'],
@@ -66,6 +75,7 @@ const TARGETS = [
   ['.chip--saved .chip__main', 'saved chip'],
   ['.chip--muted .chip__main', 'recent chip'],
   ['.tabs button:not(.is-active)', 'inactive tab'],
+  ['.search__privacy', 'location privacy disclosure'],
 ]
 
 // Only present once the Radar tab is open, so they're measured in a second pass.
@@ -74,6 +84,18 @@ const RADAR_TARGETS = [
   ['.radar__scale span', 'radar time scale'],
   ['.radar__legend span', 'radar legend'],
   ['.radar__credit', 'radar attribution'],
+]
+
+// Like Radar, Alert cards are lazy-tab content and need their own contrast pass.
+const ALERT_TARGETS = [
+  ['.alerts__eyebrow', 'alerts provider label'],
+  ['.alert__event', 'alert event'],
+  ['.alert__meta', 'alert metadata'],
+  ['.alert__severity', 'alert severity'],
+  ['.alert__times dt', 'alert time caption'],
+  ['.alert__times dd', 'alert time value'],
+  ['.alert__area', 'alert area'],
+  ['.alert__details summary', 'alert details control'],
 ]
 
 const RADAR_INDEX = {
@@ -88,6 +110,27 @@ const PIXEL = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   'base64',
 )
+
+const ALERTS = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      id: 'https://api.weather.gov/alerts/contrast-fixture',
+      properties: {
+        '@id': 'https://api.weather.gov/alerts/contrast-fixture',
+        event: 'Severe Thunderstorm Warning',
+        headline: 'Severe Thunderstorm Warning issued for Cook County',
+        severity: 'Severe',
+        urgency: 'Immediate',
+        certainty: 'Observed',
+        effective: '2030-08-09T14:00:00-05:00',
+        expires: '2030-08-09T15:00:00-05:00',
+        areaDesc: 'Cook County',
+        description: 'Damaging wind and large hail are possible.',
+      },
+    },
+  ],
+}
 
 // ---- colour maths ---------------------------------------------------------
 
@@ -213,6 +256,7 @@ const server = createServer(async (req, res) => {
   }
 })
 await new Promise((r) => server.listen(PORT, r))
+const serverPort = server.address().port
 
 const browser = await chromium.launch({
   ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
@@ -232,11 +276,14 @@ const SEED = `(() => {
   localStorage.setItem('stormlogic:v1:onboarded', 'true')
 })()`
 
-for (const theme of THEMES) {
+for (const theme of themesToCheck) {
   const page = await browser.newPage({ viewport: { width: 1180, height: 1000 } })
   await page.addInitScript(SEED)
   await page.route('**/api/forecast*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(makeFixture(theme.code, theme.isDay)) }),
+  )
+  await page.route('**/api/alerts*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALERTS) }),
   )
   // Regexes, not globs: CARTO serves from a.basemaps.cartocdn.com and friends.
   await page.route(/api\.rainviewer\.com/, (r) =>
@@ -244,8 +291,12 @@ for (const theme of THEMES) {
   await page.route(/tilecache\.rainviewer\.com|basemaps\.cartocdn\.com/, (r) =>
     r.fulfill({ status: 200, contentType: 'image/png', body: PIXEL }))
 
-  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' })
+  await page.goto(`http://localhost:${serverPort}/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.current__temp')
+
+  // Privacy copy is collapsed until the locate control is active; focus it so
+  // the disclosure is painted for the pixel AA pass.
+  await page.locator('.search__geo').focus()
 
   // Kill transitions for the whole run. Measuring injects `color: transparent`
   // and removes it again in quick succession; any element with a colour
@@ -291,6 +342,10 @@ for (const theme of THEMES) {
   await page.waitForTimeout(400)
   for (const [selector, label] of RADAR_TARGETS) await measure(selector, label)
 
+  await page.locator('.tabs button', { hasText: 'Alerts' }).click()
+  await page.waitForSelector('.alert', { timeout: 10000 })
+  for (const [selector, label] of ALERT_TARGETS) await measure(selector, label)
+
   const worst = [...rows].sort((a, b) => a.ratio - b.ratio).slice(0, 3)
   console.log(
     `${rows.every((r) => r.pass) ? 'PASS' : 'FAIL'}  ${theme.name.padEnd(12)} ` +
@@ -302,7 +357,7 @@ for (const theme of THEMES) {
 await browser.close()
 server.close()
 
-console.log(`\n${checked} contrast checks across ${THEMES.length} themes.`)
+console.log(`\n${checked} contrast checks across ${themesToCheck.length} themes.`)
 if (failures.length) {
   console.error(`\n${failures.length} BELOW AA:\n` + failures.join('\n'))
   process.exit(1)

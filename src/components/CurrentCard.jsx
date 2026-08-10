@@ -1,5 +1,5 @@
 import { describeCode, iconFor } from '../lib/weatherCodes.js'
-import { formatTemp, formatClock, parseLocalIso } from '../lib/format.js'
+import { formatTemp, formatClock, formatPrecipTotal, parseLocalIso } from '../lib/format.js'
 import ConditionBadges from './ConditionBadges.jsx'
 import CloudMeter from './CloudMeter.jsx'
 import WindDial from './WindDial.jsx'
@@ -11,6 +11,7 @@ export default function CurrentCard({
   current,
   today,
   hours = [],
+  precipLast24h = null,
   units,
   timezone,
   isFavorite,
@@ -118,6 +119,12 @@ export default function CurrentCard({
         <div className="stat">
           <dt>UV index</dt>
           <dd>{Number.isFinite(today?.uvIndexMax) ? Math.round(today.uvIndexMax) : '—'}</dd>
+        </div>
+        <div className="stat">
+          <dt>Last 24h</dt>
+          <dd title="Total precipitation in the last 24 hours">
+            {formatPrecipTotal(precipLast24h, units)}
+          </dd>
         </div>
         <div className="stat">
           <dt>Rain chance</dt>

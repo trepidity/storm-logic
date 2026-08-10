@@ -61,7 +61,7 @@ export default function LocationSearch({ onSelect, onUseMyLocation }) {
   }
 
   return (
-    <div className="search" ref={containerRef}>
+    <div className={`search${locating ? ' search--locating' : ''}`} ref={containerRef}>
       <div className="search__bar">
         <label className="search__field">
           <span className="visually-hidden">Search for a city</span>
@@ -80,17 +80,25 @@ export default function LocationSearch({ onSelect, onUseMyLocation }) {
           {busy ? <span className="search__spinner" aria-hidden="true" /> : null}
         </label>
 
+        {/* Icon-only, same role as Refresh: frees the search field. Full name
+            lives in the accessible label; privacy copy is described-by and
+            revealed on hover/focus/locating so the steady state stays quiet. */}
         <button
           type="button"
           className="search__geo"
           onClick={locate}
           disabled={locating}
           title="Use my location"
+          aria-label="Use my location"
+          aria-describedby="location-disclosure"
         >
           <span aria-hidden="true">{locating ? '…' : '◎'}</span>
-          <span className="search__geo-text">My location</span>
         </button>
       </div>
+
+      <p className="search__privacy" id="location-disclosure">
+        Location naming sends your coordinates and request IP directly to BigDataCloud.
+      </p>
 
       {open && results.length > 0 ? (
         <ul className="search__results">

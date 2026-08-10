@@ -3,12 +3,12 @@ import { iconFor } from '../lib/weatherCodes.js'
 import { parseLocalIso, roundTemp, clamp } from '../lib/format.js'
 
 /**
- * Next 24 hours, horizontally scrollable.
+ * Horizontally scrollable hourly columns (rolling next-24 or a full local day).
  *
- * The temperature line is drawn as a single SVG polyline behind the columns
- * rather than per-cell bars, so the shape of the day reads at a glance. Its
- * vertical scale is the window's own min/max — an absolute scale would flatten
- * a mild day into a straight line.
+ * The temperature line is drawn as a single SVG polyline rather than per-cell
+ * bars, so the shape of the window reads at a glance. Its vertical scale is
+ * the window's own min/max — an absolute scale would flatten a mild day into a
+ * straight line.
  */
 
 const CHART_H = 34
@@ -22,7 +22,12 @@ function hourLabel(iso, isNow) {
     .replace(/\s?([AP])M/i, (_, m) => m.toLowerCase() + 'm')
 }
 
-export default function HourlyStrip({ hours, units }) {
+export default function HourlyStrip({
+  hours,
+  units,
+  label = 'Next 24 hours',
+  ariaLabel,
+}) {
   const temps = useMemo(() => hours.map((h) => h.temperature).filter(Number.isFinite), [hours])
 
   const { min, span } = useMemo(() => {
@@ -37,9 +42,9 @@ export default function HourlyStrip({ hours, units }) {
   const y = (t) => CHART_H - clamp((t - min) / span, 0, 1) * (CHART_H - 8) - 4
 
   return (
-    <section className="hourly" aria-label="Hourly forecast for the next 24 hours">
+    <section className="hourly" aria-label={ariaLabel ?? label}>
       <div className="hourly__head">
-        <span className="metric__label">Next 24 hours</span>
+        <span className="metric__label">{label}</span>
         <span className="hourly__hint">Scroll for more</span>
       </div>
 

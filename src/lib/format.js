@@ -52,6 +52,12 @@ export function formatPrecip(value, units) {
   return `${value.toFixed(units.precipDigits)} ${units.precipSuffix}`
 }
 
+/** Always shows a number, including zero — for totals like "last 24 hours". */
+export function formatPrecipTotal(value, units) {
+  if (!Number.isFinite(value)) return '—'
+  return `${Math.max(0, value).toFixed(units.precipDigits)} ${units.precipSuffix}`
+}
+
 /**
  * Open-Meteo returns local wall-clock ISO strings with no timezone offset
  * (e.g. "2026-08-09T06:12") when timezone=auto. Parsing them with `new Date()`

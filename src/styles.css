@@ -370,14 +370,16 @@ a {
   }
 }
 
+/* Icon-only locate control — matches Refresh weight, not a second labeled pill. */
 .search__geo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  font-size: 0.9rem;
-  font-weight: 550;
-  white-space: nowrap;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 46px;
+  align-self: stretch;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
   background: var(--glass);
   border: 1px solid var(--stroke-soft);
   border-radius: var(--radius-md);
@@ -385,7 +387,8 @@ a {
   transition: background 220ms var(--ease);
 }
 
-.search__geo:hover {
+.search__geo:hover,
+.search__geo:focus-visible {
   background: var(--glass-strong);
 }
 
@@ -425,6 +428,32 @@ a {
 .search__geo[disabled] {
   opacity: 0.6;
   cursor: default;
+}
+
+/* Steady state: no vertical privacy chrome. Reveal on geo hover/focus or while
+   locating so the material disclosure is still readable and contrast-checkable. */
+.search__privacy {
+  margin: 0 2px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  /* This is a small but material disclosure, so it needs full-strength ink. */
+  color: var(--ink);
+  transition:
+    opacity 180ms var(--ease),
+    max-height 180ms var(--ease),
+    margin 180ms var(--ease);
+}
+
+.search:has(.search__geo:hover) .search__privacy,
+.search:has(.search__geo:focus-visible) .search__privacy,
+.search:has(.search__geo:focus) .search__privacy,
+.search--locating .search__privacy {
+  max-height: 3.2em;
+  opacity: 1;
+  margin: 4px 2px 0;
 }
 
 /* ===== Saved / recent places ============================================ */
@@ -774,6 +803,162 @@ a {
 
   .radar__map {
     height: 320px;
+  }
+}
+
+/* ===== NWS alerts ======================================================== */
+
+.alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: var(--glass);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+}
+
+.alerts__head,
+.alert__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.alerts__eyebrow,
+.alert__event,
+.alert__meta,
+.alert__area {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.alerts__head h1,
+.alert__head h2 {
+  font-size: 1.1rem;
+  line-height: 1.25;
+}
+
+.alerts__head > a {
+  flex: none;
+  font-size: 0.85rem;
+}
+
+.alerts__state,
+.alerts__empty,
+.alerts__unavailable {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 76px;
+  padding: 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+}
+
+.alerts__unavailable {
+  border-left: 3px solid var(--sun-glow);
+}
+
+.alerts__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--stroke-soft);
+  border-left: 4px solid var(--tone-dry);
+  border-radius: var(--radius-md);
+}
+
+.alert--extreme,
+.alert--severe {
+  border-left-color: var(--tone-thunder);
+}
+
+.alert--moderate {
+  border-left-color: var(--tone-rain);
+}
+
+.alert--minor {
+  border-left-color: var(--tone-snow);
+}
+
+.alert__severity {
+  flex: none;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  background: var(--surface-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 999px;
+}
+
+.alert__times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.alert__times > div {
+  padding: 8px 10px;
+  background: rgb(8 20 38 / 0.2);
+  border-radius: var(--radius-sm);
+}
+
+.alert__times dt {
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.alert__times dd {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.alert__details {
+  padding-top: 4px;
+  color: var(--ink-soft);
+}
+
+.alert__details summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.alert__details p {
+  margin-top: 8px;
+  white-space: pre-line;
+}
+
+.alert__details a {
+  display: inline-block;
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .alerts {
+    padding: 16px;
+  }
+
+  .alert__times {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1459,6 +1644,18 @@ a {
   padding: 4px 6px 20px;
 }
 
+/* Nested strip: head padding matches the card strip; edge-to-edge scroll. */
+.day__hourly {
+  margin: 0 -6px;
+  padding-top: 4px;
+  overflow: hidden;
+}
+
+.day__hourly .hourly__head {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
 /* `display: flex` above outranks the UA stylesheet's [hidden] { display: none },
    so collapsed days must be hidden explicitly. */
 .day__detail[hidden] {
@@ -1518,10 +1715,6 @@ a {
   }
 
   .day__track {
-    display: none;
-  }
-
-  .search__geo-text {
     display: none;
   }
 

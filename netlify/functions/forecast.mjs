@@ -5,58 +5,14 @@
  * is non-commercial. Routing through the CDN means one upstream call serves every
  * visitor in a region for the cache window, instead of one call per page load.
  *
+ * Upstream query shape (variables, forecast_days, unit maps) comes from
+ * src/lib/forecastContract.js — the same module the browser uses in dev — so
+ * prod and dev cannot drift on requested fields.
+ *
  * Routed via the /api/* redirect in netlify.toml.
  */
 
-const UPSTREAM = 'https://api.open-meteo.com/v1/forecast'
-
-const CURRENT_VARS = [
-  'temperature_2m',
-  'relative_humidity_2m',
-  'apparent_temperature',
-  'is_day',
-  'precipitation',
-  'rain',
-  'showers',
-  'snowfall',
-  'weather_code',
-  'cloud_cover',
-  'pressure_msl',
-  'wind_speed_10m',
-  'wind_direction_10m',
-  'wind_gusts_10m',
-].join(',')
-
-const DAILY_VARS = [
-  'weather_code',
-  'temperature_2m_max',
-  'temperature_2m_min',
-  'apparent_temperature_max',
-  'apparent_temperature_min',
-  'sunrise',
-  'sunset',
-  'daylight_duration',
-  'sunshine_duration',
-  'uv_index_max',
-  'precipitation_sum',
-  'rain_sum',
-  'showers_sum',
-  'snowfall_sum',
-  'precipitation_hours',
-  'precipitation_probability_max',
-  'wind_speed_10m_max',
-  'wind_gusts_10m_max',
-  'wind_direction_10m_dominant',
-].join(',')
-
-const HOURLY_VARS = ['cloud_cover', 'temperature_2m', 'precipitation_probability', 'weather_code'].join(
-  ',',
-)
-
-const UNIT_PRESETS = {
-  imperial: { temperature_unit: 'fahrenheit', wind_speed_unit: 'mph', precipitation_unit: 'inch' },
-  metric: { temperature_unit: 'celsius', wind_speed_unit: 'kmh', precipitation_unit: 'mm' },
-}
+import { buildUpstreamForecastUrl } from '../../src/lib/forecastContract.js'
 
 function json(body, status, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -74,22 +30,13 @@ export default async function handler(request) {
     return json({ error: 'Invalid or missing lat/lon.' }, 400)
   }
 
-  const units = UNIT_PRESETS[params.get('units')] ?? UNIT_PRESETS.imperial
-
-  const upstream = new URL(UPSTREAM)
-  upstream.search = new URLSearchParams({
-    // Rounded to ~1km so nearby visitors share one cache entry.
-    latitude: lat.toFixed(2),
-    longitude: lon.toFixed(2),
-    current: CURRENT_VARS,
-    daily: DAILY_VARS,
-    hourly: HOURLY_VARS,
-    timezone: 'auto',
-    // 11, not 10: the UI drops today from the list (the current-conditions
-    // card covers it), so one extra keeps ten days showing ahead.
-    forecast_days: '11',
-    ...units,
-  }).toString()
+  // Rounded to ~1km so nearby visitors share one cache entry.
+  const upstream = buildUpstreamForecastUrl({
+    latitude: lat,
+    longitude: lon,
+    unitId: params.get('units') ?? 'imperial',
+    coordDecimals: 2,
+  })
 
   try {
     const res = await fetch(upstream, {
