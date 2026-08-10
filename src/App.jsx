@@ -228,7 +228,31 @@ export default function App() {
       </header>
 
       <main className="layout">
-        <LocationSearch onSelect={selectPlace} onUseMyLocation={useMyLocation} />
+        {/* Tabs and search share one row — they're both navigation, and the
+            top of the page was spending four stacked rows on very little. */}
+        <div className="toolbar">
+          <nav className="tabs" role="tablist" aria-label="Views">
+            {[
+              ['forecast', 'Forecast'],
+              ['radar', 'Radar'],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`tab-${id}`}
+                aria-selected={tab === id}
+                aria-controls={`panel-${id}`}
+                className={tab === id ? 'is-active' : ''}
+                onClick={() => setTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <LocationSearch onSelect={selectPlace} onUseMyLocation={useMyLocation} />
+        </div>
 
         <SavedPlaces
           activeKey={activeKey}
@@ -239,14 +263,14 @@ export default function App() {
           onRemoveRecent={removeRecent}
         />
 
-        {status === 'loading' && !data ? (
+        {status === 'loading' && !data && tab === 'forecast' ? (
           <div className="state state--loading">
             <span className="state__spinner" aria-hidden="true" />
             <p>{place ? `Reading the sky over ${place.name}…` : 'Finding your location…'}</p>
           </div>
         ) : null}
 
-        {status === 'error' && !data ? (
+        {status === 'error' && !data && tab === 'forecast' ? (
           <div className="state state--error" role="alert">
             <p>{error}</p>
             <button type="button" onClick={load}>
@@ -255,66 +279,46 @@ export default function App() {
           </div>
         ) : null}
 
-        {data && place ? (
-          <>
-            {error ? (
-              <p className="inline-error" role="status">
-                {error}
-              </p>
-            ) : null}
+        {error && data ? (
+          <p className="inline-error" role="status">
+            {error}
+          </p>
+        ) : null}
 
-            <nav className="tabs" role="tablist" aria-label="Views">
-              {[
-                ['forecast', 'Forecast'],
-                ['radar', 'Radar'],
-              ].map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={`tab-${id}`}
-                  aria-selected={tab === id}
-                  aria-controls={`panel-${id}`}
-                  className={tab === id ? 'is-active' : ''}
-                  onClick={() => setTab(id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </nav>
+        {tab === 'forecast' && data && place ? (
+          <div role="tabpanel" id="panel-forecast" aria-labelledby="tab-forecast" className="panelgroup">
+            <CurrentCard
+              place={place}
+              current={data.current}
+              today={data.days[0]}
+              hours={data.hours}
+              units={units}
+              timezone={data.timezone}
+              isFavorite={isFavorite}
+              onToggleFavorite={toggleFavorite}
+            />
 
-            {tab === 'forecast' ? (
-              <div role="tabpanel" id="panel-forecast" aria-labelledby="tab-forecast" className="panelgroup">
-                <CurrentCard
-                  place={place}
-                  current={data.current}
-                  today={data.days[0]}
-                  hours={data.hours}
-                  units={units}
-                  timezone={data.timezone}
-                  isFavorite={isFavorite}
-                  onToggleFavorite={toggleFavorite}
-                />
+            <Forecast days={data.days} units={units} />
+          </div>
+        ) : null}
 
-                <Forecast days={data.days} units={units} />
-              </div>
-            ) : (
-              <div role="tabpanel" id="panel-radar" aria-labelledby="tab-radar">
-                <Suspense
-                  fallback={
-                    <div className="state state--loading">
-                      <span className="state__spinner" aria-hidden="true" />
-                      <p>Loading radar…</p>
-                    </div>
-                  }
-                >
-                  {/* Keyed on the place so switching location rebuilds cleanly
-                      rather than trying to reconcile a live Leaflet instance. */}
-                  <RadarPanel key={place.key} place={place} />
-                </Suspense>
-              </div>
-            )}
-          </>
+        {/* Radar needs only coordinates, so it can render before the forecast
+            request resolves. */}
+        {tab === 'radar' && place ? (
+          <div role="tabpanel" id="panel-radar" aria-labelledby="tab-radar">
+            <Suspense
+              fallback={
+                <div className="state state--loading">
+                  <span className="state__spinner" aria-hidden="true" />
+                  <p>Loading radar…</p>
+                </div>
+              }
+            >
+              {/* Keyed on the place so switching location rebuilds cleanly
+                  rather than trying to reconcile a live Leaflet instance. */}
+              <RadarPanel key={place.key} place={place} />
+            </Suspense>
+          </div>
         ) : null}
       </main>
 
