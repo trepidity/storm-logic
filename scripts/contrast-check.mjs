@@ -63,6 +63,8 @@ const TARGETS = [
   ['.footer p', 'footer attribution'],
   ['.footer__note', 'footer hail note'],
   ['.tabs button.is-active', 'active tab'],
+  ['.chip--saved .chip__main', 'saved chip'],
+  ['.chip--muted .chip__main', 'recent chip'],
   ['.tabs button:not(.is-active)', 'inactive tab'],
 ]
 
@@ -220,8 +222,19 @@ const browser = await chromium.launch({
 const failures = []
 let checked = 0
 
+// Seed storage so the saved/recent chips exist to be measured — a fresh
+// context has none, and the targets would silently skip.
+const SEED = `(() => {
+  const p = (name, lat, lon) => ({ key: lat.toFixed(3) + ',' + lon.toFixed(3), name, label: name,
+    latitude: lat, longitude: lon, admin1: '', country: '', isGeo: false })
+  localStorage.setItem('stormlogic:v1:favorites', JSON.stringify([p('Chicago', 41.878, -87.630)]))
+  localStorage.setItem('stormlogic:v1:recents', JSON.stringify([p('Denver', 39.740, -104.980)]))
+  localStorage.setItem('stormlogic:v1:onboarded', 'true')
+})()`
+
 for (const theme of THEMES) {
   const page = await browser.newPage({ viewport: { width: 1180, height: 1000 } })
+  await page.addInitScript(SEED)
   await page.route('**/api/forecast*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(makeFixture(theme.code, theme.isDay)) }),
   )

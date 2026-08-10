@@ -104,13 +104,11 @@ function check(name, actual, expected) {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${pass ? '' : `\n        got ${JSON.stringify(actual)} want ${JSON.stringify(expected)}`}`)
 }
 
+// Saved and recent share one row now, distinguished by data-kind rather than
+// by a labelled group heading.
 const chips = (kind) =>
-  page.evaluate((k) => {
-    const group = [...document.querySelectorAll('.saved__group')].find((g) =>
-      g.querySelector('.saved__label')?.textContent.trim().toLowerCase().includes(k),
-    )
-    return group ? [...group.querySelectorAll('.chip__main')].map((c) => c.textContent.trim()) : []
-  }, kind)
+  page.$$eval(`.chip[data-kind="${kind}"] .chip__main`, (ns) =>
+    ns.map((n) => n.textContent.replace('★', '').trim()))
 
 const placeName = () => page.locator('.current__place').textContent()
 const starred = () => page.locator('.star').evaluate((n) => n.classList.contains('star--on'))
@@ -171,11 +169,11 @@ check('unstarring demotes to recents', await chips('recent'), ['London'])
 check('saved list shrinks', await chips('saved'), ['Chicago'])
 
 // 8. Explicit removal from each list.
-await page.locator('.chip--muted .chip__remove').first().click()
+await page.locator('.chip[data-kind="recent"] .chip__remove').first().click()
 await page.waitForTimeout(200)
 check('recent can be dismissed', await chips('recent'), [])
 
-await page.locator('.saved__group .chip__remove').first().click()
+await page.locator('.chip[data-kind="saved"] .chip__remove').first().click()
 await page.waitForTimeout(200)
 check('saved can be removed', await chips('saved'), [])
 

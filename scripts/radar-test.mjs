@@ -161,6 +161,15 @@ check('forecast frames are marked', await page.locator('.radar__tick--future').c
 check('exactly one frame is active', await page.locator('.radar__tick--on').count(), 1)
 check('radar tiles were requested once the tab opened', radarRequests > 0, true)
 
+// Same stylesheet-loss guard as the smoke test: the radar section can vanish
+// without a single behavioural assertion noticing.
+const mapStyled = await page.evaluate(() => {
+  const map = document.querySelector('.radar__map').getBoundingClientRect()
+  const tick = document.querySelector('.radar__tick')
+  return map.height > 200 && getComputedStyle(tick).backgroundColor !== 'rgba(0, 0, 0, 0)'
+})
+check('radar styles are present (map has height, ticks have a surface)', mapStyled, true)
+
 // Pause, then scrub to a forecast frame.
 await page.locator('.radar__play').click()
 await page.waitForTimeout(150)

@@ -158,13 +158,25 @@ The basemap is CARTO `dark_matter`. Note it serves from `a.basemaps.cartocdn.com
 glob route like `**/basemaps.cartocdn.com/**` will not match across the subdomain, which is why the
 tests use regexes.
 
+## Layout
+
+Everything navigational — brand, tabs, search, My location, units, refresh — sits on **one header
+row**, with saved and recent locations on a single scrolling line below it. This was previously
+four stacked rows and pushed the weather itself off the top of a laptop screen. The search is the
+only elastic item in the row; below 900px the wordmark drops, below 680px the search wraps to its
+own line.
+
 ## Saved locations
 
 Two separate lists, both in `localStorage`:
 
-- **Saved** — explicit. Star the location in the header to keep it; × removes it. Capped at 12.
+- **Saved** — explicit. Star the location in the card header to keep it; × removes it. Capped at 12.
 - **Recent** — automatic. Anywhere you view lands here, newest first, capped at 6. Starring a
   recent promotes it to Saved; unstarring demotes it back rather than losing it.
+
+They share one scrolling row rather than getting a labelled row each: saved chips lead and carry a
+star, recents follow muted. They stay distinct in the data (`data-kind`), just not in vertical
+space.
 
 The last viewed location and your °F/°C choice are restored on reload. Places are keyed by
 coordinates rounded to 3 decimals (~110m), so the same city reached by search and by geolocation
@@ -179,6 +191,13 @@ until the timeout expires. An `onboarded` flag keeps a declined prompt from bein
 storage disabled by policy, quota exceeded); the footer says so when that happens.
 
 ### Checks
+
+**Behavioural tests do not catch a deleted stylesheet.** A careless edit once removed the Tabs,
+Radar and favourite-toggle CSS sections wholesale, and all 55 assertions still passed — the markup
+was intact, so only the appearance broke. `smoke-test.mjs` and `radar-test.mjs` now assert a few
+computed styles (tabs have a surface, the active tab is highlighted, the star sits beside the
+location name rather than wrapping under it, the radar map has height). Add to those when you add
+a new section.
 
 Dev-only and deliberately not dependencies:
 

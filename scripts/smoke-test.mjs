@@ -157,6 +157,28 @@ for (const [name, viewport] of [
       .filter((v) => v !== null),
   }))
 
+  // Guard against stylesheet loss. A CSS section can be deleted without any
+  // behavioural test noticing — every assertion here passed once while the
+  // tabs, radar and favourite-toggle rules were gone from the build.
+  const styling = await page.evaluate(() => {
+    const bg = (sel) => getComputedStyle(document.querySelector(sel)).backgroundColor
+    const title = document.querySelector('.current__title')
+    const h1 = document.querySelector('.current__place').getBoundingClientRect()
+    const star = document.querySelector('.star').getBoundingClientRect()
+    return {
+      tabsHaveSurface: bg('.tabs') !== 'rgba(0, 0, 0, 0)',
+      activeTabHighlighted: bg('.tabs button.is-active') !== 'rgba(0, 0, 0, 0)',
+      titleIsFlexRow: getComputedStyle(title).display === 'flex',
+      // The star sits beside the location name, not wrapped underneath it.
+      starOnSameLine: Math.abs(star.top - h1.top) < h1.height,
+      cardHasBackground: bg('.current') !== 'rgba(0, 0, 0, 0)',
+    }
+  })
+  for (const [key, ok] of Object.entries(styling)) {
+    if (!ok) failures.push(`${name}: styling check failed — ${key}`)
+  }
+  console.log('styling:', JSON.stringify(styling))
+
   // Expand the snow day (index 5) to confirm detail panels populate.
   await page.locator('.forecast .day').nth(5).locator('.day__summary').click()
   await page.waitForTimeout(250)

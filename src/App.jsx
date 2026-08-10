@@ -198,6 +198,9 @@ export default function App() {
     <div className="app">
       <div className="app__sky" aria-hidden="true" />
 
+      {/* Everything navigational lives on one line: brand, tabs, search and
+          controls. This used to be three stacked rows, which spent most of the
+          first screen on chrome instead of weather. */}
       <header className="topbar">
         <div className="brand">
           <span className="brand__mark" aria-hidden="true">
@@ -205,6 +208,28 @@ export default function App() {
           </span>
           <span className="brand__name">StormLogic</span>
         </div>
+
+        <nav className="tabs" role="tablist" aria-label="Views">
+          {[
+            ['forecast', 'Forecast'],
+            ['radar', 'Radar'],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`tab-${id}`}
+              aria-selected={tab === id}
+              aria-controls={`panel-${id}`}
+              className={tab === id ? 'is-active' : ''}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <LocationSearch onSelect={selectPlace} onUseMyLocation={useMyLocation} />
 
         <div className="topbar__controls">
           <div className="unit-toggle" role="group" aria-label="Temperature units">
@@ -228,32 +253,6 @@ export default function App() {
       </header>
 
       <main className="layout">
-        {/* Tabs and search share one row — they're both navigation, and the
-            top of the page was spending four stacked rows on very little. */}
-        <div className="toolbar">
-          <nav className="tabs" role="tablist" aria-label="Views">
-            {[
-              ['forecast', 'Forecast'],
-              ['radar', 'Radar'],
-            ].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                id={`tab-${id}`}
-                aria-selected={tab === id}
-                aria-controls={`panel-${id}`}
-                className={tab === id ? 'is-active' : ''}
-                onClick={() => setTab(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          <LocationSearch onSelect={selectPlace} onUseMyLocation={useMyLocation} />
-        </div>
-
         <SavedPlaces
           activeKey={activeKey}
           favorites={favorites}
