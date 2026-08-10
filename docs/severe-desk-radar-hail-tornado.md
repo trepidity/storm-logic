@@ -1,7 +1,7 @@
 ---
 title: "Severe weather desk: storm, tornado, and hail tracking"
 date: 2026-08-10
-version: 1.0
+version: 1.1
 status: Draft
 owner: Jared
 category: research
@@ -24,6 +24,7 @@ tags:
 - **Owner**: Jared
 - **Audience**: Very nerdy meteorologist users; StormLogic product posture
 - **Related**: [`api-and-product-brainstorm.md`](./api-and-product-brainstorm.md) §3.2–§3.3, §5; Radar + Alerts in [`README.md`](../README.md)
+- **Roadmap**: [`severe-desk-waved-roadmap.md`](./severe-desk-waved-roadmap.md) — dependency-ready Waves 0–G; no Wave is implementation approval.
 
 This document records what a credible **storm / tornado / hail tracking** surface needs, what StormLogic already has, which **APIs and data feeds** fill each gap, and whether each is **free** or **paid**.
 
@@ -241,6 +242,11 @@ IEM is the highest-leverage **free** bridge from “alert list” to “nerd des
 
 ## 8. Recommended build path
 
+The phase ordering below is product context. The actionable dependency graph,
+provider-decision gates, bounded work lanes, and closure evidence are in
+[`severe-desk-waved-roadmap.md`](./severe-desk-waved-roadmap.md). No phase is
+ordered for implementation until its named Wave receives explicit approval.
+
 ### Phase 0 — Honesty (no new provider)
 
 - Clarify current hail badge: model weather-code signal only  
@@ -340,3 +346,4 @@ StormLogic can remain aligned with its **keyless, non-commercial, honest multi-s
 | Version | Date | Notes |
 | --- | --- | --- |
 | 1.0 | 2026-08-10 | Initial research write-up: tracking layers, build path, free vs paid API inventory |
+| 1.1 | 2026-08-10 | Linked dependency-ready waved roadmap; implementation remains explicitly deferred |
