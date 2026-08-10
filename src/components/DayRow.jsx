@@ -37,7 +37,9 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
   const dayName = formatDayName(day.date, index)
   const dayHours = day.hours ?? []
   const explanation = explainDay(day, units)
-  const outdoorPlan = deriveOutdoorPlan(day)
+  // The interval scan is only useful to the one open detail panel. Keep the
+  // other nine rows as cheap summaries, alongside their unmounted hour strips.
+  const outdoorPlan = expanded ? deriveOutdoorPlan(day) : null
 
   return (
     <li className={`day ${expanded ? 'day--open' : ''}`}>
