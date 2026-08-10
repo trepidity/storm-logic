@@ -656,6 +656,16 @@ a {
   color: var(--sun-glow);
 }
 
+.radar__alert-note {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: rgb(8 20 38 / 0.34);
+  border-left: 3px solid var(--tone-thunder);
+  border-radius: var(--radius-sm);
+}
+
 .radar__map {
   height: 440px;
   background: #0d1520;
@@ -950,6 +960,25 @@ a {
 .alert__details a {
   display: inline-block;
   margin-top: 8px;
+}
+
+.alert__radar {
+  align-self: flex-start;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  transition:
+    background 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+
+.alert__radar:hover {
+  background: var(--glass-strong);
+  transform: translateY(-1px);
 }
 
 @media (max-width: 640px) {
@@ -1782,6 +1811,62 @@ a {
   flex-direction: column;
   gap: 14px;
   padding: 4px 6px 20px;
+}
+
+.day__explanation {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.confidence {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 16px;
+  row-gap: 2px;
+  padding: 12px 14px;
+  color: var(--ink-soft);
+  background: var(--surface-1);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.confidence__title {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.confidence__temperature,
+.confidence__precipitation,
+.confidence__note {
+  margin: 0;
+}
+
+.confidence__temperature,
+.confidence__precipitation {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.confidence__note {
+  grid-column: 1 / -1;
+  color: var(--ink-faint);
+  font-size: 0.76rem;
+}
+
+.confidence--loading,
+.confidence--unavailable {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 0.85rem;
 }
 
 /* Nested strip: head padding matches the card strip; edge-to-edge scroll. */

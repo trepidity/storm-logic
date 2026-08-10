@@ -33,6 +33,7 @@ Locked decisions** is binding product direction until superseded.
 | Provider | Endpoint / role | Keyless? | Caching | Used for |
 | --- | --- | --- | --- | --- |
 | **Open-Meteo Forecast** | `api.open-meteo.com/v1/forecast` | Yes (non-commercial free) | Netlify `/api/forecast` ~15 min CDN | Current conditions, 11-day daily, hourly (cloud, temp, weather code, precip probability + amount), `past_days=1` |
+| **Open-Meteo Ensemble** | `ensemble-api.open-meteo.com/v1/ensemble` | Yes (non-commercial free) | Netlify `/api/confidence` 3h CDN | Tomorrow-only NCEP GEFS member spread (expanded Tomorrow row) |
 | **Open-Meteo Geocoding** | `geocoding-api.open-meteo.com/v1/search` | Yes | Browser direct | City search |
 | **BigDataCloud** | reverse-geocode-client | Yes | None (2s abort) | Name a GPS fix after geolocation |
 | **RainViewer** | weather-maps.json + radar tiles | Yes (non-commercial) | Lazy Radar tab only | Animated radar + short nowcast |
@@ -307,22 +308,47 @@ global air quality interest.
 
 ### 10.2 Ordered roadmap (execution sequence)
 
-1. **24-hour precipitation integrity closeout** — **done**  
+1. **24-hour precipitation integrity closeout** — **done**
    Complete lookback only; partial/gapped history → unavailable (`—`); full dry
    window → zero amount.
 
-2. **Dedicated lazy Air tab** — **done**  
+2. **Dedicated lazy Air tab** — **done**
    As locked in §10.1: current US AQI, category, source time, unavailable/no-data.
    No pollen or pollutant-dashboard scope initially.
 
-3. **Precipitation timing from the existing hourly forecast** — **done**  
+3. **Precipitation timing from the existing hourly forecast** — **done**
    Onset/end from next-24h hourly series on the current card.
+
+4. **Event-centric precipitation** — **done**
+   When both event boundaries are known, Forecast shows precipitation so far,
+   expected remaining total, complete event total, and the first dry hour. An
+   event that reaches beyond retained history or the forecast horizon shows no
+   partial aggregate.
+
+5. **U.S. severe-weather desk connection** — **done**
+   Alert cards open the lazy Radar view. Official active NWS Polygon and
+   MultiPolygon geometry is displayed exactly when supplied; otherwise Radar
+   explicitly stays centered on the selected place without inventing a shape.
+
+6. **Forecast confidence** — **done**
+   Tomorrow's expanded row lazily loads the NCEP GEFS member ensemble through
+   `/api/confidence` and reports its middle-80% range for daily high and rain
+   total. Missing/gapped member data is shown as unavailable; no subjective
+   confidence threshold is invented.
+
+7. **Explain this day** — **done**
+   Expanded forecast days render a bounded sentence derived only from existing
+   normalized day and hourly values—no generated prose or new provider.
+
+8. **Decision helpers** — **decision pending**
+   Choose the first flow (commute or outdoor event), decision horizon,
+   thresholds, evidence presentation, and surface before implementation.
 
 ### 10.3 Explicitly deferred (still valid later, not next)
 
-- Ensemble confidence, vs-normal historical, NWS AFD, alert polygons on radar,
-  decision modes, drag-reorder places, richer icons — see §6–§8. They stay on the
-  idea shelf until the three items above are done.
+- Decision helpers, vs-normal historical, NWS AFD,
+  drag-reorder places, and richer icons — see §6–§8. Confidence and decision
+  helpers remain pending their explicit product decisions.
 
 ---
 
@@ -333,3 +359,4 @@ global air quality interest.
 | 1.0 | 2026-08-10 | Initial brainstorm from live API inventory and product discussion |
 | 1.1 | 2026-08-10 | Locked US AQI rules + ordered roadmap (precip integrity → Air tab → precip timing) |
 | 1.2 | 2026-08-10 | Air coverage locked to U.S. only (not global US AQI display) |
+| 1.3 | 2026-08-10 | Phase 6 locked and delivered: lazy Tomorrow NCEP GEFS middle-80% spread |

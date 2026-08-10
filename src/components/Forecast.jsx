@@ -12,7 +12,7 @@ import DayRow from './DayRow.jsx'
  * The API request asks for one extra day so dropping today still leaves a full
  * ten ahead.
  */
-export default function Forecast({ days, units }) {
+export default function Forecast({ days, units, place }) {
   const upcoming = useMemo(() => days.slice(1), [days])
   const [openIndex, setOpenIndex] = useState(0)
 
@@ -45,6 +45,7 @@ export default function Forecast({ days, units }) {
             scaleMax={scaleMax}
             expanded={openIndex === i}
             onToggle={() => setOpenIndex(openIndex === i ? -1 : i)}
+            place={place}
           />
         ))}
       </ol>

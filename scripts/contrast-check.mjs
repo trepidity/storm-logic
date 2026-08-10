@@ -52,6 +52,7 @@ const TARGETS = [
   ['.current__feels', 'feels-like'],
   ['.current__range', 'high/low'],
   ['.current__precip-timing', 'precip timing'],
+  ['.current__precip-event', 'precip event story'],
   ['.metric__label', 'panel caption'],
   ['.cloud__desc', 'cloud description'],
   ['.wind__from', 'wind direction'],
@@ -67,6 +68,11 @@ const TARGETS = [
   ['.forecast__hint', 'forecast hint'],
   ['.day__name small', 'day date'],
   ['.day__condition', 'day condition'],
+  ['.day__explanation', 'selected day explanation'],
+  ['.confidence__title', 'ensemble spread title'],
+  ['.confidence__temperature', 'ensemble temperature range'],
+  ['.confidence__precipitation', 'ensemble precipitation range'],
+  ['.confidence__note', 'ensemble provenance'],
   ['.day__chance', 'precip chance'],
   ['.day__low', 'daily low'],
   ['.badge', 'badge text'],
@@ -87,6 +93,11 @@ const RADAR_TARGETS = [
   ['.radar__credit', 'radar attribution'],
 ]
 
+// Present only after an alert hands the user to Radar with an official area.
+const RADAR_ALERT_TARGETS = [
+  ['.radar__alert-note', 'official alert area note'],
+]
+
 // Like Radar, Alert cards are lazy-tab content and need their own contrast pass.
 const ALERT_TARGETS = [
   ['.alerts__eyebrow', 'alerts provider label'],
@@ -96,6 +107,7 @@ const ALERT_TARGETS = [
   ['.alert__times dt', 'alert time caption'],
   ['.alert__times dd', 'alert time value'],
   ['.alert__area', 'alert area'],
+  ['.alert__radar', 'alert radar handoff'],
   ['.alert__details summary', 'alert details control'],
 ]
 
@@ -129,6 +141,10 @@ const ALERTS = {
   features: [
     {
       id: 'https://api.weather.gov/alerts/contrast-fixture',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[-87.75, 41.82], [-87.56, 41.82], [-87.56, 41.95], [-87.75, 41.95], [-87.75, 41.82]]],
+      },
       properties: {
         '@id': 'https://api.weather.gov/alerts/contrast-fixture',
         event: 'Severe Thunderstorm Warning',
@@ -266,6 +282,30 @@ function makeFixture(code, isDay) {
   }
 }
 
+function makeConfidenceFixture() {
+  const date = '2026-08-10'
+  const time = Array.from({ length: 24 }, (_, hour) => `${date}T${String(hour).padStart(2, '0')}:00`)
+  return {
+    hourly: {
+      time,
+      temperature_2m: time.map(() => 82),
+      precipitation: time.map(() => 0.01),
+      ...Object.fromEntries(
+        Array.from({ length: 30 }, (_, index) => [
+          `temperature_2m_member${String(index + 1).padStart(2, '0')}`,
+          time.map(() => 80 + index * 0.2),
+        ]),
+      ),
+      ...Object.fromEntries(
+        Array.from({ length: 30 }, (_, index) => [
+          `precipitation_member${String(index + 1).padStart(2, '0')}`,
+          time.map(() => (index < 15 ? 0 : 0.01)),
+        ]),
+      ),
+    },
+  }
+}
+
 // ---- run ------------------------------------------------------------------
 
 const server = createServer(async (req, res) => {
@@ -313,6 +353,9 @@ for (const theme of themesToCheck) {
   await page.route('**/api/air*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(AIR) }),
   )
+  await page.route('**/api/confidence*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(makeConfidenceFixture()) }),
+  )
   // Regexes, not globs: CARTO serves from a.basemaps.cartocdn.com and friends.
   await page.route(/api\.rainviewer\.com/, (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RADAR_INDEX) }))
@@ -321,6 +364,7 @@ for (const theme of themesToCheck) {
 
   await page.goto(`http://localhost:${serverPort}/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.current__temp')
+  await page.waitForSelector('.confidence--ready', { timeout: 10000 })
 
   // Privacy copy is collapsed until the locate control is active; focus it so
   // the disclosure is painted for the pixel AA pass.
@@ -363,6 +407,9 @@ for (const theme of themesToCheck) {
   }
 
   for (const [selector, label] of TARGETS) await measure(selector, label)
+  if (!(await page.locator('.confidence--ready').count())) {
+    failures.push(`${theme.name} · ensemble spread: fixture did not render the confidence surface`)
+  }
   if (!(await page.locator('.current__precip-timing').count())) {
     failures.push(`${theme.name} · precip timing: fixture did not render the timing surface`)
   }
@@ -376,6 +423,10 @@ for (const theme of themesToCheck) {
   await page.locator('.tabs button', { hasText: 'Alerts' }).click()
   await page.waitForSelector('.alert', { timeout: 10000 })
   for (const [selector, label] of ALERT_TARGETS) await measure(selector, label)
+
+  await page.locator('.alert__radar').click()
+  await page.waitForSelector('.radar__alert-note', { timeout: 10000 })
+  for (const [selector, label] of RADAR_ALERT_TARGETS) await measure(selector, label)
 
   await page.locator('.tabs button', { hasText: 'Air' }).click()
   await page.waitForSelector('.air__reading', { timeout: 10000 })

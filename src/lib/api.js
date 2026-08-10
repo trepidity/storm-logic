@@ -4,6 +4,8 @@ import {
   buildUpstreamForecastUrl,
 } from './forecastContract.js'
 import { isUsAqiCoverage, normaliseCurrentAirQuality } from './usAqi.js'
+import { derivePrecipEvent } from './precipEvent.js'
+import { deriveTomorrowConfidence } from './forecastConfidence.js'
 
 export { FORECAST_DAYS }
 
@@ -16,6 +18,7 @@ const OPEN_METEO_GEOCODE = 'https://geocoding-api.open-meteo.com/v1/search'
 const REVERSE_GEOCODE = 'https://api.bigdatacloud.net/data/reverse-geocode-client'
 const NWS_ACTIVE_ALERTS = 'https://api.weather.gov/alerts/active'
 const OPEN_METEO_AIR = 'https://air-quality-api.open-meteo.com/v1/air-quality'
+const OPEN_METEO_ENSEMBLE = 'https://ensemble-api.open-meteo.com/v1/ensemble'
 // A city name is helpful, but never worth holding the location flow hostage.
 const REVERSE_GEOCODE_TIMEOUT_MS = 2_000
 
@@ -242,6 +245,27 @@ function buildNextHours(payload, days) {
 }
 
 /**
+ * Keep just time + precipitation before the card's current hourly boundary.
+ * This is enough to establish an ongoing event's beginning; retaining full
+ * historical hourly presentation data would be needless page-state weight.
+ */
+function buildPrecipHistory(payload) {
+  const hourly = payload.hourly ?? {}
+  const times = hourly.time ?? []
+  const nowIso = payload.current?.time
+  if (!times.length || typeof nowIso !== 'string') return []
+
+  const nowKey = nowIso.slice(0, 13)
+  const currentIndex = times.findIndex((time) => time.slice(0, 13) >= nowKey)
+  if (currentIndex <= 0) return []
+
+  return times.slice(0, currentIndex).map((time, index) => ({
+    time,
+    precipitation: hourly.precipitation?.[index] ?? null,
+  }))
+}
+
+/**
  * Sum hourly precipitation ending at the current hour (inclusive).
  * Each Open-Meteo hourly `precipitation` value is the preceding-hour total.
  * Requires past_days on the request so enough history exists before "now".
@@ -374,11 +398,16 @@ function normalise(payload) {
     windGusts: c.wind_gusts_10m ?? null,
   }
 
+  const hours = buildNextHours(payload, days)
+  const precipHistory = buildPrecipHistory(payload)
+  const precipEvent = derivePrecipEvent(precipHistory, hours)
+
   return {
     current,
     days,
-    hours: buildNextHours(payload, days),
+    hours,
     precipLast24h: sumPrecipLast24h(payload),
+    precipEvent,
     timezone: payload.timezone ?? null,
     timezoneAbbreviation: payload.timezone_abbreviation ?? null,
     elevation: payload.elevation ?? null,
@@ -403,6 +432,37 @@ function buildAlertsUrl({ latitude, longitude }) {
 
   if (direct) return `${NWS_ACTIVE_ALERTS}?${new URLSearchParams({ point })}`
   return `/api/alerts?${new URLSearchParams({ lat: latitude.toFixed(4), lon: longitude.toFixed(4) })}`
+}
+
+function isPosition(position) {
+  return (
+    Array.isArray(position) &&
+    position.length >= 2 &&
+    Number.isFinite(position[0]) &&
+    Number.isFinite(position[1])
+  )
+}
+
+function isLinearRing(ring) {
+  return Array.isArray(ring) && ring.length >= 4 && ring.every(isPosition)
+}
+
+/**
+ * Retain NWS's official area without creating, simplifying, or relocating it.
+ * Leaflet consumes Polygon and MultiPolygon GeoJSON directly. Invalid or absent
+ * geometry is represented as null so Radar can stay centered on the chosen
+ * place instead of rendering a plausible but invented shape.
+ */
+function normaliseAlertGeometry(geometry) {
+  if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) return null
+
+  const polygonIsValid = (polygon) => Array.isArray(polygon) && polygon.length > 0 && polygon.every(isLinearRing)
+  const valid =
+    geometry.type === 'Polygon'
+      ? polygonIsValid(geometry.coordinates)
+      : Array.isArray(geometry.coordinates) && geometry.coordinates.length > 0 && geometry.coordinates.every(polygonIsValid)
+
+  return valid ? geometry : null
 }
 
 function normaliseAlerts(payload) {
@@ -430,6 +490,7 @@ function normaliseAlerts(payload) {
         description: props.description ?? null,
         instruction: props.instruction ?? null,
         sourceUrl: props['@id'] ?? null,
+        geometry: normaliseAlertGeometry(feature?.geometry),
       }
     })
 }
@@ -497,6 +558,43 @@ export async function fetchAirQuality({ latitude, longitude }, signal, options =
 
   const payload = await getJson(buildAirQualityUrl({ latitude, longitude }, options), signal)
   return normaliseCurrentAirQuality(payload)
+}
+
+/**
+ * Tomorrow's NCEP GEFS member data stays separate from the deterministic
+ * forecast payload. Forecast only asks for it while Tomorrow's detail is
+ * expanded; prod traverses a shared CDN cache.
+ */
+export function buildForecastConfidenceUrl({ latitude, longitude, unitId }, options = {}) {
+  const units = UNIT_PRESETS[unitId] ?? UNIT_PRESETS.imperial
+  const mode =
+    options.mode ??
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV ? 'direct' : 'proxy')
+
+  if (mode === 'direct') {
+    const params = new URLSearchParams({
+      latitude: latitude.toFixed(4),
+      longitude: longitude.toFixed(4),
+      hourly: 'temperature_2m,precipitation',
+      models: 'ncep_gefs_seamless',
+      forecast_days: '2',
+      timezone: 'auto',
+      temperature_unit: units.temperature_unit,
+      precipitation_unit: units.precipitation_unit,
+    })
+    return `${OPEN_METEO_ENSEMBLE}?${params}`
+  }
+
+  return `/api/confidence?${new URLSearchParams({
+    lat: latitude.toFixed(4),
+    lon: longitude.toFixed(4),
+    units: units.id,
+  })}`
+}
+
+export async function fetchForecastConfidence({ latitude, longitude, unitId, date }, signal, options = {}) {
+  const payload = await getJson(buildForecastConfidenceUrl({ latitude, longitude, unitId }, options), signal)
+  return deriveTomorrowConfidence(payload, date)
 }
 
 export async function searchPlaces(query, signal) {

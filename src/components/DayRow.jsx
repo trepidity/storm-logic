@@ -1,4 +1,5 @@
 import { summariseDay } from '../lib/daySummary.js'
+import { explainDay } from '../lib/dayExplanation.js'
 import {
   formatTemp,
   formatDayName,
@@ -13,6 +14,7 @@ import {
 } from '../lib/format.js'
 import ConditionBadges from './ConditionBadges.jsx'
 import HourlyStrip from './HourlyStrip.jsx'
+import TomorrowConfidence from './TomorrowConfidence.jsx'
 
 /** Position the day's high/low as a segment of the whole 10-day range. */
 function rangeStyle(day, scaleMin, scaleMax) {
@@ -23,7 +25,7 @@ function rangeStyle(day, scaleMin, scaleMax) {
   return { left: `${left}%`, width: `${Math.max(right - left, 4)}%` }
 }
 
-export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded, onToggle }) {
+export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded, onToggle, place }) {
   // Derived from the day's numbers, not from Open-Meteo's daily weather_code —
   // see src/lib/daySummary.js for why the raw code cannot be trusted here.
   const summary = summariseDay(day)
@@ -32,6 +34,7 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
   const panelId = `day-detail-${index}`
   const dayName = formatDayName(day.date, index)
   const dayHours = day.hours ?? []
+  const explanation = explainDay(day, units)
 
   return (
     <li className={`day ${expanded ? 'day--open' : ''}`}>
@@ -71,6 +74,12 @@ export default function DayRow({ day, index, units, scaleMin, scaleMax, expanded
       </button>
 
       <div className="day__detail" id={panelId} hidden={!expanded}>
+        {explanation ? <p className="day__explanation">{explanation}</p> : null}
+
+        {expanded && index === 1 && place ? (
+          <TomorrowConfidence place={place} date={day.date} units={units} />
+        ) : null}
+
         <ConditionBadges
           code={day.weatherCode}
           rain={rainTotal}

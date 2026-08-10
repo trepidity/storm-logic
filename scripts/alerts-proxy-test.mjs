@@ -4,7 +4,19 @@ import assert from 'node:assert/strict'
 import handler from '../netlify/functions/alerts.mjs'
 
 const originalFetch = globalThis.fetch
-const featureCollection = { type: 'FeatureCollection', features: [] }
+const featureCollection = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      id: 'https://api.weather.gov/alerts/proxy-geometry',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[-87.75, 41.82], [-87.56, 41.82], [-87.56, 41.95], [-87.75, 41.95], [-87.75, 41.82]]],
+      },
+      properties: { event: 'Severe Thunderstorm Warning' },
+    },
+  ],
+}
 
 try {
   let captured

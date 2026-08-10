@@ -37,6 +37,42 @@ const INDEX = {
   },
 }
 
+// Exact NWS GeoJSON fixture. The browser seam below must take this official
+// geometry from the alert card into the lazy Radar surface; it must not invent
+// a boundary when NWS has none.
+const ALERTS = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      id: 'https://api.weather.gov/alerts/fixture-polygon',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[-87.75, 41.82], [-87.56, 41.82], [-87.56, 41.95], [-87.75, 41.95], [-87.75, 41.82]]],
+      },
+      properties: {
+        '@id': 'https://api.weather.gov/alerts/fixture-polygon',
+        event: 'Severe Thunderstorm Warning',
+        headline: 'Severe Thunderstorm Warning for Cook County',
+        severity: 'Severe',
+        effective: '2030-08-09T14:00:00-05:00',
+        expires: '2030-08-09T15:00:00-05:00',
+      },
+    },
+    {
+      id: 'https://api.weather.gov/alerts/fixture-no-geometry',
+      geometry: null,
+      properties: {
+        '@id': 'https://api.weather.gov/alerts/fixture-no-geometry',
+        event: 'Flood Advisory',
+        headline: 'Flood Advisory without a mappable boundary',
+        severity: 'Moderate',
+        effective: '2030-08-09T14:00:00-05:00',
+        expires: '2030-08-09T15:00:00-05:00',
+      },
+    },
+  ],
+}
+
 const norm = normaliseFrames(INDEX)
 check('past and nowcast are flattened in order', norm.frames.length, 5)
 check('nowcast frames are tagged as forecast', norm.frames.map((f) => f.future), [false, false, false, true, true])
@@ -133,6 +169,8 @@ page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 let radarRequests = 0
 await page.route('**/api/forecast*', (r) =>
   r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FORECAST) }))
+await page.route('**/api/alerts*', (r) =>
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALERTS) }))
 // Regexes, not globs: CARTO serves from a.basemaps.cartocdn.com and friends,
 // and a glob's host segment won't match across the subdomain.
 await page.route(/api\.rainviewer\.com/, (r) =>
@@ -190,6 +228,38 @@ await page.locator('.tabs button', { hasText: 'Forecast' }).click()
 await page.waitForSelector('.current__temp')
 check('returning to forecast restores the card', await page.locator('.current__temp').count(), 1)
 check('the map is unmounted on leaving the tab', await page.locator('.radar__map').count(), 0)
+
+// L0: an active alert must open the lazy Radar view with the official NWS
+// polygon. A second alert without geometry must still open Radar but never
+// create a plausible-looking substitute boundary.
+await page.locator('.tabs button', { hasText: 'Alerts' }).click()
+await page.waitForSelector('.alerts .alert', { timeout: 10000 })
+check('both active alert fixtures render', await page.locator('.alert').count(), 2)
+
+const alertRadarActions = page.locator('.alert__radar')
+check('active alerts offer a Radar handoff', await alertRadarActions.count(), 2)
+if ((await alertRadarActions.count()) === 2) {
+  await alertRadarActions.nth(0).click()
+  await page.waitForSelector('.radar__map', { timeout: 10000 })
+  await page.waitForSelector('.radar__alert-polygon', { timeout: 10000 })
+  check('polygon alert opens Radar with one official boundary', await page.locator('.radar__alert-polygon').count(), 1)
+  check(
+    'Radar identifies the selected official alert area',
+    await page.locator('.radar__alert-note').textContent(),
+    'Official NWS alert area · Severe Thunderstorm Warning',
+  )
+
+  await page.locator('.tabs button', { hasText: 'Alerts' }).click()
+  await page.waitForSelector('.alert__radar', { timeout: 10000 })
+  await page.locator('.alert__radar').nth(1).click()
+  await page.waitForSelector('.radar__map', { timeout: 10000 })
+  check('geometry-free alert leaves Radar without a fabricated boundary', await page.locator('.radar__alert-polygon').count(), 0)
+  check(
+    'geometry-free alert explains the absent official boundary',
+    await page.locator('.radar__alert-note').textContent(),
+    'NWS did not provide a mappable boundary for this alert. Radar is centered on Chicago.',
+  )
+}
 
 await browser.close()
 server.close()

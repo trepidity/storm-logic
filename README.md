@@ -79,9 +79,10 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-In dev the browser calls Open-Meteo (forecast + air quality) and NWS directly.
-In a production build forecast, alerts, and air go through `/api/forecast`,
-`/api/alerts`, and `/api/air` — see below.
+In dev the browser calls Open-Meteo (forecast, ensemble, and air quality) and
+NWS directly. In a production build forecast, confidence, alerts, and air go
+through `/api/forecast`, `/api/confidence`, `/api/alerts`, and `/api/air` — see
+below.
 
 ## Deploying to Netlify
 
@@ -153,6 +154,21 @@ European AQI are out of scope.
 decimals. Dev calls `air-quality-api.open-meteo.com` directly; production uses
 `/api/air`.
 
+## Forecast confidence
+
+The expanded **Tomorrow** row can lazily load one additional provider response:
+Open-Meteo's NCEP GEFS Seamless ensemble. It renders the middle 80% of 30
+members for tomorrow's daily high and precipitation total, labelled **Ensemble
+spread**. This is a numeric disagreement range, not a vague confidence score.
+
+Every member and all 24 local tomorrow hours must be present and numeric; a
+missing member, an incomplete day, a DST-transition day, or a provider failure
+renders “Ensemble spread is unavailable for tomorrow” instead of a plausible
+partial range. `netlify/functions/confidence.mjs` uses a three-hour CDN cache
+plus three hours stale-while-revalidate; dev calls the ensemble endpoint
+directly. The exact contract and its rationale live in
+[`docs/confidence-discovery.md`](docs/confidence-discovery.md).
+
 ## Licensing — read before shipping
 
 Open-Meteo's free tier is **non-commercial**. Data is CC BY 4.0, so the attribution in the footer is
@@ -165,10 +181,11 @@ required, not decorative. If this becomes a commercial product, you need a paid 
 src/
   lib/
     forecastContract.js  Open-Meteo request shape (vars, days, units) — shared by browser + proxy
-    api.js               fetch + reshape forecast; alerts + air quality clients
+    api.js               fetch + reshape forecast; alerts, air quality, ensemble clients
     weatherCodes.js      WMO code table; the only place hail/snow/rain classification happens
     daySummary.js        derives each day's label from its numbers, not its weather code
     precipTiming.js      next-24h precip start/end labels from existing hourly series
+    forecastConfidence.js strict tomorrow middle-80% ensemble derivation
     usAqi.js             US AQI category bands + current-payload normalise
     storage.js           localStorage wrapper; saved places, recents, last location, units
     radar.js             RainViewer frame index + tile URL construction
@@ -184,11 +201,13 @@ src/
     RadarPanel        animated RainViewer radar (lazy-loaded)
     AlertsPanel       active NWS alerts (lazy-loaded, U.S. coverage)
     AirPanel          current US AQI (lazy-loaded, U.S. coverage only)
+    TomorrowConfidence lazy tomorrow ensemble-spread block
     Forecast/DayRow   10-day list with expandable detail + that day's hourly strip
 netlify/functions/
   forecast.mjs        cached upstream proxy (imports forecastContract — do not re-list vars here)
   alerts.mjs          short-lived cached NWS active-alerts proxy
   air.mjs             cached Open-Meteo air-quality proxy (US AQI current)
+  confidence.mjs      cached NCEP GEFS ensemble proxy (Tomorrow only)
 scripts/
   summary-test.mjs            day-condition logic (pure, no browser)
   forecast-contract-test.mjs  captures real dev + proxy upstream URLs vs golden fields
@@ -198,6 +217,8 @@ scripts/
   alerts-proxy-test.mjs       NWS point/cache/coverage behaviour through the real handler
   us-aqi-test.mjs             US AQI bands + normalise (pure)
   air-proxy-test.mjs          air-quality proxy URL/cache/validation
+  confidence-proxy-test.mjs   ensemble proxy URL/cache/validation
+  confidence-data-test.mjs    complete-member and complete-day numeric integrity
   smoke-test.mjs              renders the built app against a fixture
   contrast-check.mjs          WCAG audit of every sky theme
   persistence-test.mjs        saved locations, recents, restore-on-reload
@@ -326,7 +347,8 @@ sky doesn't need darkening — but the night gradient still reaches `#2a3d61` at
 stacked translucent white layers lifted panel backgrounds to mid-slate, dropping accent-coloured
 text to 3.1:1. **Glass is tinted dark on every theme, without exception.**
 
-376 checks across 8 themes, including separate passes with the Radar, Alerts, and Air tabs open; every measured role meets AA.
+440 checks across 8 themes, including separate passes with the Radar, Alerts,
+Air, and alert-to-Radar handoff open; every measured role meets AA.
 
 One harness bug worth knowing: measuring injects `color: transparent` and removes it moments later,
 so any element with a CSS colour *transition* gets read mid-animation at a fractional alpha and

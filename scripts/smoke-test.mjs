@@ -56,7 +56,10 @@ for (let di = 0; di < allDates.length; di += 1) {
     hourlyCode.push(2)
     const inLookback =
       (date === PAST && h >= 15) || (date === START && h <= 14)
-    hourlyPrecip.push(inLookback ? 0.01 : 0)
+    // A complete current event: 0.24 in has fallen through 14:00, 0.04 in is
+    // forecast in the next two hours, then 17:00 is the first dry hour.
+    const eventStillForecast = date === START && (h === 15 || h === 16)
+    hourlyPrecip.push(inLookback ? 0.01 : eventStillForecast ? 0.02 : 0)
   }
 }
 
@@ -125,6 +128,42 @@ const airFixture = {
     time: '2026-08-09T14:00',
     interval: 3600,
     us_aqi: 42,
+  },
+}
+
+// NCEP GEFS returns the ensemble mean plus 30 individual members. The middle
+// 80% range below is deliberately independent of the implementation: member
+// highs span 80.2°–86° and 16 of 30 members carry 0.01 in/h tomorrow.
+const confidenceTimes = Array.from(
+  { length: 24 },
+  (_, hour) => `2026-08-10T${String(hour).padStart(2, '0')}:00`,
+)
+const confidenceFixture = {
+  latitude: 41.88,
+  longitude: -87.63,
+  timezone: 'America/Chicago',
+  hourly: {
+    time: confidenceTimes,
+    temperature_2m: confidenceTimes.map(() => 83),
+    precipitation: confidenceTimes.map(() => 0.01),
+    ...Object.fromEntries(
+      Array.from({ length: 30 }, (_, index) => {
+        const member = String(index + 1).padStart(2, '0')
+        return [
+          `temperature_2m_member${member}`,
+          confidenceTimes.map(() => 80 + (index + 1) * 0.2),
+        ]
+      }),
+    ),
+    ...Object.fromEntries(
+      Array.from({ length: 30 }, (_, index) => {
+        const member = String(index + 1).padStart(2, '0')
+        return [
+          `precipitation_member${member}`,
+          confidenceTimes.map(() => (index < 14 ? 0 : 0.01)),
+        ]
+      }),
+    ),
   },
 }
 
@@ -203,6 +242,7 @@ for (const [name, viewport] of [
   let alertRequests = 0
   let airMode = 'ready'
   let airRequests = 0
+  let confidenceRequests = 0
   page.on('console', (m) => {
     // The coverage fixture intentionally returns 422. Chromium reports that
     // expected HTTP response as a console error even though the UI asserts its
@@ -257,6 +297,10 @@ for (const [name, viewport] of [
     }
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(airFixture) })
   })
+  await page.route('**/api/confidence*', (route) => {
+    confidenceRequests += 1
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(confidenceFixture) })
+  })
 
   await page.goto(`http://localhost:${serverPort}/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.current__temp', { timeout: 10000 })
@@ -287,6 +331,8 @@ for (const [name, viewport] of [
       ?.querySelector('dd')
       ?.textContent?.trim(),
     precipTiming: document.querySelector('.current__precip-timing')?.textContent?.trim(),
+    precipEvent: document.querySelector('.current__precip-event')?.textContent?.trim(),
+    dayExplanation: document.querySelector('.day--open .day__explanation')?.textContent?.trim(),
     hailDays: [...document.querySelectorAll('.forecast .day')]
       .map((d, i) => (d.textContent.includes('Hail risk') ? i : null))
       .filter((v) => v !== null),
@@ -383,6 +429,53 @@ for (const [name, viewport] of [
   if (!report.precipTiming?.startsWith('Rain ending ~')) {
     failures.push(
       `${name}: current-card precip timing must render the fixture's ongoing event, got ${report.precipTiming}`,
+    )
+  }
+  if (
+    !report.precipEvent?.includes('0.24 in so far') ||
+    !report.precipEvent.includes('~0.04 in more expected') ||
+    !report.precipEvent.includes('~0.28 in event total') ||
+    !report.precipEvent.includes('Drying ~')
+  ) {
+    failures.push(
+      `${name}: current-card event story must show complete so-far, remaining, total, and dry-time evidence, got ${JSON.stringify(report.precipEvent)}`,
+    )
+  }
+  // The selected-day explanation is a bounded, numbers-only reading of the
+  // already-rendered tomorrow data. This literal fixture assertion catches a
+  // missing explanation, a stale day selection, or an explanation that ignores
+  // the normalised day/hour values.
+  if (report.dayExplanation !== 'Partly cloudy, high near 88°.') {
+    failures.push(
+      `${name}: selected-day explanation should describe fixture tomorrow, got ${report.dayExplanation}`,
+    )
+  }
+  // Forecast confidence belongs only to Tomorrow's already-expanded detail.
+  // This direct consumer assertion catches a missing lazy fetch, a stale date,
+  // or a range assembled from the provider mean instead of its members.
+  await page.waitForSelector('.confidence--ready', { timeout: 10000 })
+  const confidence = await page.evaluate(() => ({
+    title: document.querySelector('.confidence__title')?.textContent?.trim(),
+    temperature: document.querySelector('.confidence__temperature')?.textContent?.trim(),
+    precipitation: document.querySelector('.confidence__precipitation')?.textContent?.trim(),
+    memberNote: document.querySelector('.confidence__note')?.textContent?.trim(),
+    blocks: document.querySelectorAll('.confidence').length,
+  }))
+  if (confidence.title !== 'Ensemble spread') {
+    failures.push(`${name}: missing confidence title, got ${confidence.title}`)
+  }
+  if (confidence.temperature !== 'High 81°–85°') {
+    failures.push(`${name}: member-derived tomorrow high spread was not rendered, got ${confidence.temperature}`)
+  }
+  if (confidence.precipitation !== 'Rain 0.00–0.24 in') {
+    failures.push(`${name}: member-derived tomorrow rain spread was not rendered, got ${confidence.precipitation}`)
+  }
+  if (confidence.memberNote !== 'Middle 80% of 30 NCEP GEFS members') {
+    failures.push(`${name}: confidence provenance must remain explicit, got ${confidence.memberNote}`)
+  }
+  if (confidence.blocks !== 1 || confidenceRequests !== 1) {
+    failures.push(
+      `${name}: Tomorrow should mount and fetch exactly one confidence block, got ${confidence.blocks} blocks / ${confidenceRequests} requests`,
     )
   }
   console.log('styling:', JSON.stringify(styling))

@@ -54,6 +54,10 @@ export default function App() {
   const [error, setError] = useState(null)
   // Not persisted: forecast is the right thing to land on every visit.
   const [tab, setTab] = useState('forecast')
+  // A selected NWS alert is session-only context for the Radar handoff. Manual
+  // Radar navigation clears it, so stale alert areas never follow a user to a
+  // different place or a later, unrelated map visit.
+  const [radarAlert, setRadarAlert] = useState(null)
 
   const units = UNIT_PRESETS[unitId]
   const abortRef = useRef(null)
@@ -157,6 +161,7 @@ export default function App() {
     const normalised = normalisePlace(next)
     if (!normalised) return
     userChoseRef.current = true
+    setRadarAlert(null)
     setPlace(normalised)
 
     // Viewing something adds it to recents — unless it's already saved, where
@@ -187,6 +192,16 @@ export default function App() {
 
   const removeFavorite = (key) => setFavorites((prev) => prev.filter((f) => f.key !== key))
   const removeRecent = (key) => setRecents((prev) => prev.filter((p) => p.key !== key))
+
+  function selectTab(nextTab) {
+    if (nextTab === 'radar') setRadarAlert(null)
+    setTab(nextTab)
+  }
+
+  function openAlertOnRadar(alert) {
+    setRadarAlert(alert)
+    setTab('radar')
+  }
 
   async function useMyLocation() {
     try {
@@ -226,7 +241,7 @@ export default function App() {
               aria-selected={tab === id}
               aria-controls={`panel-${id}`}
               className={tab === id ? 'is-active' : ''}
-              onClick={() => setTab(id)}
+              onClick={() => selectTab(id)}
             >
               {label}
             </button>
@@ -296,13 +311,14 @@ export default function App() {
               today={data.days[0]}
               hours={data.hours}
               precipLast24h={data.precipLast24h}
+              precipEvent={data.precipEvent}
               units={units}
               timezone={data.timezone}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
             />
 
-            <Forecast days={data.days} units={units} />
+            <Forecast days={data.days} units={units} place={place} />
           </div>
         ) : null}
 
@@ -320,7 +336,7 @@ export default function App() {
             >
               {/* Keyed on the place so switching location rebuilds cleanly
                   rather than trying to reconcile a live Leaflet instance. */}
-              <RadarPanel key={place.key} place={place} />
+              <RadarPanel key={place.key} place={place} alert={radarAlert} />
             </Suspense>
           </div>
         ) : null}
@@ -335,7 +351,7 @@ export default function App() {
                 </div>
               }
             >
-              <AlertsPanel key={place.key} place={place} />
+              <AlertsPanel key={place.key} place={place} onOpenRadar={openAlertOnRadar} />
             </Suspense>
           </div>
         ) : null}

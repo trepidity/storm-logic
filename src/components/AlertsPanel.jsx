@@ -17,7 +17,7 @@ function severityClass(severity) {
   return `alert--${String(severity ?? 'unknown').toLowerCase().replace(/[^a-z]+/g, '-')}`
 }
 
-function AlertCard({ alert }) {
+function AlertCard({ alert, onOpenRadar }) {
   const metadata = [alert.severity, alert.urgency, alert.certainty].filter(Boolean).join(' · ')
   return (
     <article className={`alert ${severityClass(alert.severity)}`}>
@@ -40,6 +40,12 @@ function AlertCard({ alert }) {
         </div>
       </dl>
       {alert.area ? <p className="alert__area">Area: {alert.area}</p> : null}
+      {alert.geometry ? null : (
+        <p className="alert__area">NWS has not provided a mappable boundary for this alert.</p>
+      )}
+      <button type="button" className="alert__radar" onClick={() => onOpenRadar(alert)}>
+        {alert.geometry ? 'View alert area on radar' : 'View radar at location'}
+      </button>
       {alert.description || alert.instruction || alert.sourceUrl ? (
         <details className="alert__details">
           <summary>Alert details</summary>
@@ -56,7 +62,7 @@ function AlertCard({ alert }) {
   )
 }
 
-export default function AlertsPanel({ place }) {
+export default function AlertsPanel({ place, onOpenRadar }) {
   const [state, setState] = useState({ status: 'loading', alerts: [], errorCode: null })
 
   useEffect(() => {
@@ -100,7 +106,9 @@ export default function AlertsPanel({ place }) {
 
       {state.status === 'ready' && state.alerts.length > 0 ? (
         <div className="alerts__list">
-          {state.alerts.map((alert) => <AlertCard key={alert.id} alert={alert} />)}
+          {state.alerts.map((alert) => (
+            <AlertCard key={alert.id} alert={alert} onOpenRadar={onOpenRadar} />
+          ))}
         </div>
       ) : null}
 

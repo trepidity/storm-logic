@@ -14,10 +14,11 @@ const FRAME_MS = 500
 const RADAR_OPACITY = 0.72
 const START_ZOOM = 7
 
-export default function RadarPanel({ place }) {
+export default function RadarPanel({ place, alert = null }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const layersRef = useRef(new Map())
+  const alertLayerRef = useRef(null)
   const timerRef = useRef(null)
 
   const [frames, setFrames] = useState([])
@@ -49,6 +50,7 @@ export default function RadarPanel({ place }) {
       map.remove()
       mapRef.current = null
       layersRef.current.clear()
+      alertLayerRef.current = null
     }
     // Created once; recentring on place change is handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,6 +68,34 @@ export default function RadarPanel({ place }) {
 
     return () => marker.remove()
   }, [place.latitude, place.longitude])
+
+  // The selected alert geometry is the exact active NWS GeoJSON retained by
+  // the alert client. Never derive a boundary from its area text or the place:
+  // absent geometry is an honest "centered on place" Radar view.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !alert?.geometry) return undefined
+
+    const layer = L.geoJSON(alert.geometry, {
+      interactive: false,
+      style: {
+        className: 'radar__alert-polygon',
+        color: '#ffcf6b',
+        weight: 3,
+        fillColor: '#ffcf6b',
+        fillOpacity: 0.14,
+      },
+    }).addTo(map)
+    alertLayerRef.current = layer
+
+    const bounds = layer.getBounds()
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 10 })
+
+    return () => {
+      layer.remove()
+      if (alertLayerRef.current === layer) alertLayerRef.current = null
+    }
+  }, [alert])
 
   // --- frames ------------------------------------------------------------
   useEffect(() => {
@@ -119,7 +149,7 @@ export default function RadarPanel({ place }) {
   const active = frames[index]
 
   return (
-    <section className="radar" aria-label="Weather radar">
+    <section className="radar" aria-label={alert?.geometry ? 'Weather radar with official NWS alert area' : 'Weather radar'}>
       <div className="radar__head">
         <span className="metric__label">Radar · {place.name}</span>
         <span className={`radar__stamp ${active?.future ? 'radar__stamp--future' : ''}`}>
@@ -130,6 +160,14 @@ export default function RadarPanel({ place }) {
               : 'Loading…'}
         </span>
       </div>
+
+      {alert ? (
+        <p className="radar__alert-note" role="status">
+          {alert.geometry
+            ? `Official NWS alert area · ${alert.event}`
+            : `NWS did not provide a mappable boundary for this alert. Radar is centered on ${place.name}.`}
+        </p>
+      ) : null}
 
       <div className="radar__map" ref={containerRef} />
 
