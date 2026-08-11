@@ -324,6 +324,10 @@ for (const [name, viewport] of [
       category: document.querySelector('.stat--aqi .stat__note')?.textContent?.trim(),
       count: document.querySelectorAll('.stat').length,
     },
+    currentHailBadge: document.querySelector('.current .badge--hail')?.textContent?.trim() ?? null,
+    hailDisclosure: [...document.querySelectorAll('.footer__note')]
+      .map((note) => note.textContent?.trim())
+      .find((note) => note?.includes('WMO codes 96 and 99')) ?? null,
     hailDays: [...document.querySelectorAll('.forecast .day')]
       .map((d, i) => (d.textContent.includes('Hail risk') ? i : null))
       .filter((v) => v !== null),
@@ -425,6 +429,14 @@ for (const [name, viewport] of [
     failures.push(
       `${name}: AQI should add one current-card stat and one forecast-time request, got ${report.aqi.count} stats / ${airRequests} requests`,
     )
+  }
+  // L0: code 96 is the current fixture. It can be a risk signal, never a
+  // measured-hail observation or a tracking claim.
+  if (report.currentHailBadge !== '🧊Hail risk') {
+    failures.push(`${name}: current WMO 96 hail signal must remain labelled as a risk, got ${report.currentHailBadge}`)
+  }
+  if (report.hailDisclosure !== 'Hail is reported only via WMO codes 96 and 99 (thunderstorm with hail) — Open-Meteo has no measured hail variable.') {
+    failures.push(`${name}: WMO hail disclosure must state that Open-Meteo has no measured hail variable, got ${report.hailDisclosure}`)
   }
   // 24 lookback hours × 0.01 in — proves past_days precip is summed, not today's daily total.
   if (report.precipLast24h !== '0.24 in') {

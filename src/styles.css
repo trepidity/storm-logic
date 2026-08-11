@@ -801,9 +801,102 @@ a {
   background: linear-gradient(90deg, #4fd06a, #e8e04a, #e8a13a, #e05a3a, #c53ac5);
 }
 
+.radar__provenance,
 .radar__credit {
   font-size: 0.78rem;
   color: var(--ink-soft);
+}
+
+.radar__provenance {
+  padding: 8px 10px;
+  background: rgb(8 20 38 / 0.24);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.radar__official-layers {
+  padding: 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+}
+
+.radar__official-layers-head p,
+.radar__layer-source,
+.radar__layer-time,
+.radar__layer-scope,
+.radar__layer-status {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.radar__official-layers-head p {
+  margin-top: 3px;
+  font-size: 0.78rem;
+}
+
+.radar__layer-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.radar__layer {
+  min-width: 0;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+}
+
+.radar__layer--unavailable {
+  border-left: 3px solid var(--sun-glow);
+}
+
+.radar__layer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  font-size: 0.86rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.radar__layer-toggle:hover {
+  color: var(--accent);
+}
+
+.radar__layer-indicator {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.radar__layer-toggle[aria-pressed='false'] .radar__layer-indicator {
+  background: transparent;
+}
+
+.radar__layer-detail {
+  display: grid;
+  gap: 3px;
+  margin-top: 7px;
+}
+
+.radar__layer-source,
+.radar__layer-time,
+.radar__layer-scope,
+.radar__layer-status {
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.radar__layer-status {
+  color: var(--sun-glow);
 }
 
 @media (max-width: 640px) {
@@ -813,6 +906,10 @@ a {
 
   .radar__map {
     height: 320px;
+  }
+
+  .radar__layer-list {
+    grid-template-columns: 1fr;
   }
 }
 

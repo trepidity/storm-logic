@@ -96,6 +96,12 @@ const RADAR_TARGETS = [
   ['.radar__stamp', 'radar timestamp'],
   ['.radar__scale span', 'radar time scale'],
   ['.radar__legend span', 'radar legend'],
+  ['.radar__provenance', 'radar product provenance'],
+  ['.radar__official-layers-head p', 'official layers description'],
+  ['.radar__layer-toggle', 'official layer control'],
+  ['.radar__layer-source', 'official layer source'],
+  ['.radar__layer-time', 'official layer time'],
+  ['.radar__layer-status', 'official layer unavailable state'],
   ['.radar__credit', 'radar attribution'],
 ]
 
@@ -359,6 +365,10 @@ for (const theme of themesToCheck) {
   await page.goto(`http://localhost:${serverPort}/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.current__temp')
   await page.waitForSelector('.stat--aqi .stat__value', { timeout: 10000 })
+  // Ensemble spread is deliberately lazy inside Tomorrow's detail. Open the
+  // consumer seam before waiting for it; otherwise this audit times out while
+  // the component is correctly unmounted.
+  await page.locator('.forecast .day').first().locator('.day__summary').click()
   await page.waitForSelector('.confidence--ready', { timeout: 10000 })
 
   // Privacy copy is collapsed until the locate control is active; focus it so

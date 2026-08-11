@@ -1,0 +1,6 @@
+{
+  "fixture": "constructed malformed request input",
+  "request": "GET /alerts/active?area=ZZ",
+  "expectedHttpStatus": 400,
+  "reason": "area must be a supported state or marine region code"
+}

@@ -1,0 +1,5 @@
+{
+  "fixture": "constructed malformed RainViewer index",
+  "version": "2.0",
+  "radar": { "past": "not-an-array" }
+}

@@ -1,0 +1,6 @@
+{
+  "fixture": "constructed malformed query input",
+  "request": "GET FeatureServer/0/query?where=*&f=geojson",
+  "expectedHttpStatus": 400,
+  "reason": "invalid ArcGIS where clause"
+}
