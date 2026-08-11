@@ -48,6 +48,36 @@ export async function fetchRadarFrames(signal) {
   return data
 }
 
+/**
+ * Choose which frame stays selected when the index window shifts.
+ *
+ * The index is a moving window: a refresh publishes a newer frame and drops
+ * the oldest, so the same array position is a different moment afterwards.
+ * Selection therefore survives by frame identity (`path`), never by index.
+ *
+ * Three cases, in priority order:
+ *   1. First load, or the previous selection aged out of the window entirely —
+ *      land on the latest observation.
+ *   2. The viewer was sitting on the live edge — follow it forward, which is
+ *      the whole point of refreshing.
+ *   3. The viewer deliberately scrubbed back — stay exactly where they put
+ *      themselves.
+ *
+ * @returns {number} an index into `next`; 0 when `next` is empty.
+ */
+export function reconcileFrameSelection({ previous = [], previousPath = null, next = [] } = {}) {
+  if (next.length === 0) return 0
+
+  const latestIndex = next.reduce((latest, frame, at) => (frame.future ? latest : at), 0)
+  if (previous.length === 0 || previousPath === null) return latestIndex
+
+  const previousLatest = [...previous].reverse().find((frame) => !frame.future)?.path ?? null
+  if (previousPath === previousLatest) return latestIndex
+
+  const kept = next.findIndex((frame) => frame.path === previousPath)
+  return kept < 0 ? latestIndex : kept
+}
+
 export function frameClock(unix) {
   if (!Number.isFinite(unix)) return '—'
   return new Date(unix * 1000).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })

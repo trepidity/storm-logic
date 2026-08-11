@@ -12,6 +12,16 @@
 # Function routing must come BEFORE the SPA catch-all, or /api/* gets
 # swallowed by the index.html rewrite.
 [[redirects]]
+  from = "/api/severeDesk/iemAttributes"
+  to = "/.netlify/functions/severe-desk-iem-attributes"
+  status = 200
+
+[[redirects]]
+  from = "/api/severeDesk/iemLsr"
+  to = "/.netlify/functions/severe-desk-iem-lsr"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200

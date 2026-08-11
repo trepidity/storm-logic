@@ -588,6 +588,84 @@
       "proves": [
         "WMS capture pins time dimension and base-reflectivity product name"
       ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "valid-historical",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T15:21:12Z",
+      "request": "GET /geojson/nexrad_attr.py?valid=2026-08-11T13:40:00Z",
+      "status": 200,
+      "contentType": "application/vnd.geo+json; charset=utf-8",
+      "artifact": "iem-attributes/valid-historical.json",
+      "sha256": "1173314071f7ffd128120854323993447a7db135e759674977fafe9052714df4",
+      "proves": [
+        "valid= addresses a historical scan snapshot; the v1.3 parameterless contract is false",
+        "returned scan times are within the accepted valid= proximity bound",
+        "upstream selects one scan per NEXRAD site"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "valid-future-empty",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T15:21:12Z",
+      "request": "GET /geojson/nexrad_attr.py?valid=2030-01-01T00:00:00Z",
+      "status": 200,
+      "contentType": "application/vnd.geo+json; charset=utf-8",
+      "artifact": "iem-attributes/valid-future-empty.json",
+      "sha256": "50412e4d3d4302d7a2b23d9dad8c4b986a0f402da9683a451e0dad9c1492630d",
+      "proves": [
+        "an in-range future valid= is HTTP 200 with an empty FeatureCollection",
+        "future selection is emptiness no-data-in-window, never unavailable"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "valid-live-edge-one-sided",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T19:01:09Z",
+      "request": "GET /geojson/nexrad_attr.py?valid=2026-08-11T19:00:00Z",
+      "status": 200,
+      "contentType": "application/vnd.geo+json; charset=utf-8",
+      "artifact": "iem-attributes/valid-live-edge-one-sided.json",
+      "sha256": "9d74b501ccecfed1e4151935c9678bffdbed2fe5e6017fd45b472f8d82f24068",
+      "proves": [
+        "a live-edge valid= response can contain only scans before the requested instant",
+        "all 1,346 captured scans are within the 20-minute accepted proximity bound",
+        "one-sided upstream selection is healthy data, not an upstream error"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "valid-malformed-422",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T15:21:12Z",
+      "request": "GET /geojson/nexrad_attr.py?valid=not-a-time",
+      "status": 422,
+      "contentType": "text/plain; charset=UTF-8",
+      "artifact": "iem-attributes/valid-malformed-422.txt",
+      "sha256": "647efb3dcd157111ef2e2aae79ee7ff72c2f3c6dab8309f8581ebfd7065edffd",
+      "proves": [
+        "a malformed valid= is rejected with HTTP 422",
+        "the 422 body is a Python repr, not JSON; JSON.parse throws on it"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "ignored-parameter",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T15:21:12Z",
+      "request": "GET /geojson/nexrad_attr.py?valid_time=2026-08-11T13:40:00Z",
+      "status": 200,
+      "contentType": "application/vnd.geo+json; charset=utf-8",
+      "artifact": "iem-attributes/ignored-parameter.json",
+      "sha256": "a9dbf5082b0340494b29e046e39bb8c6cd4e7958553844d2e715acc7612080a8",
+      "proves": [
+        "unrecognised parameters are silently ignored rather than rejected",
+        "returned scan times are outside the accepted valid= proximity bound; the live snapshot is served instead",
+        "only valid= addresses time; a misspelled parameter fails open (R-10)"
+      ]
     }
   ]
 }

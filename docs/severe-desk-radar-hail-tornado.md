@@ -25,7 +25,7 @@ tags:
 - **Audience**: Very nerdy meteorologist users; StormLogic product posture
 - **Related**: [`api-and-product-brainstorm.md`](./api-and-product-brainstorm.md) §3.2–§3.3, §5; Radar + Alerts in [`README.md`](../README.md)
 - **Roadmap**: [`severe-desk-waved-roadmap.md`](./severe-desk-waved-roadmap.md) — dependency-ready Waves 0–G; no Wave is implementation approval.
-- **Provider decisions**: [`severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md) v1.2 — **sources accepted 2026-08-10** (Wave 0 ratified); **contract fixtures pending, and they gate Waves C–D adapter work.**
+- **Provider decisions**: [`severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md) v1.7 — **sources accepted; Waves 0–D locally verified 2026-08-11.** Contract fixtures are closed (47 artifacts plus mutation proof); a trusted live-event session remains separate user-operated validation.
 
 > **v1.2 verification note.** Sections 5.1, 5.2, 5.6, 5.7, 5.8, 6 and 11 were
 > re-checked against primary sources on 2026-08-10. Four inventory entries were

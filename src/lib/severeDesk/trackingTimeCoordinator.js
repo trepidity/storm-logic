@@ -37,23 +37,17 @@ function selectedReports(candidate, selectedAt) {
 }
 
 function selectedAttributes(candidate, selectedAt) {
-  const selectedMs = timestamp(selectedAt)
-  const features = []
-  for (const feature of candidate.features) {
-    const scanAt = timestamp(feature?.scanAt)
-    if (scanAt === null) return unavailable(candidate, 'upstream-error')
-    if (Math.abs(scanAt - selectedMs) <= candidate.clock.cadenceMs) features.push(feature)
-  }
-
-  if (features.length === 0 && candidate.features.length > 0) return unavailable(candidate)
-  if (features.length === 0) return { ...candidate, emptiness: 'no-data-in-window', features: [] }
-
-  const rendered = features.slice(0, ATTRIBUTE_CAP)
+  // IEM's valid= endpoint already returns exactly one upstream-selected scan
+  // per site around the requested frame. Reapplying a browser-side tolerance
+  // discards valid staggered site volumes and makes most 10-minute Radar
+  // frames unrenderable. The client only applies the display cap.
+  const rendered = candidate.features.slice(0, ATTRIBUTE_CAP)
   return {
     ...candidate,
+    emptiness: rendered.length ? 'populated' : 'no-data-in-window',
     features: rendered,
-    truncated: rendered.length < features.length
-      ? { shown: rendered.length, total: features.length, exact: true, upstreamTruncated: false }
+    truncated: rendered.length < candidate.features.length
+      ? { shown: rendered.length, total: candidate.features.length, exact: true, upstreamTruncated: false }
       : null,
   }
 }

@@ -23,7 +23,7 @@ Only a later, explicit approval of a named Wave authorizes code changes.
 - `docs/api-and-product-brainstorm.md` §2 (product traits) and §10.3
   (severe desk explicitly deferred pending product approval).
 - [`docs/severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md)
-  v1.3 (2026-08-10, **sources accepted — Wave 0 ratified**): binding
+  v1.7 (2026-08-11, **sources accepted; Waves 0–D locally verified**): binding
   canonical/fallback sources, time contract, load/cache, and LayerState
   architecture for Waves B–D. Closes `FND-SD-PROVIDER-CONTRACTS` **for decision
   scope only**. §10.4 contract fixtures do not re-open D-SD-01–03, but they
@@ -171,7 +171,7 @@ Waves E–G remain blocked on D-SD-04 / D-SD-05.
 
 | Seam ID | Authority refs | Crate / file / symbol | Signature / contract | Safe unresolved state | Owner | Completion evidence |
 |---|---|---|---|---|---|---|
-| SC-SD-PROVIDER | [research §4.2](./severe-desk-radar-hail-tornado.md#42-authority-rules-non-negotiable), [§9](./severe-desk-radar-hail-tornado.md#9-suggested-technical-seams-when-approved), [provider contract §10.4](./severe-desk-provider-contracts.md#104-contract-fixture-set-status-corrected-in-v12) | [`docs/severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md) v1.3 — **closed 2026-08-10** | Names one source, request scope, response fixture, cache/freshness, attribution, and fallback for each Wave 1–2 layer | Sources and recorded schemas are locked. Adapters may consume only their recorded contract fixtures; uncaptured schema remains fail-closed. | product/provider lane | 42 hash-verified nominal/empty/malformed/upstream-failure and targeted regression fixtures (§10.4) |
+| SC-SD-PROVIDER | [research §4.2](./severe-desk-radar-hail-tornado.md#42-authority-rules-non-negotiable), [§9](./severe-desk-radar-hail-tornado.md#9-suggested-technical-seams-when-approved), [provider contract §10.4](./severe-desk-provider-contracts.md#104-contract-fixture-set-status-corrected-in-v12) | [`docs/severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md) v1.7 — **closed 2026-08-11** | Names one source, request scope, response fixture, cache/freshness, attribution, and fallback for each Wave 1–2 layer | Sources and recorded schemas are locked. Adapters may consume only their recorded contract fixtures; uncaptured schema remains fail-closed. | product/provider lane | 47 hash-verified nominal/empty/malformed/upstream-failure and targeted regression fixtures, plus mutation proof (§10.4) |
 | SC-SD-LAYER | [research §4](./severe-desk-radar-hail-tornado.md#4-product-shape-fits-stormlogic-traits), [§4.2](./severe-desk-radar-hail-tornado.md#42-authority-rules-non-negotiable), [§9](./severe-desk-radar-hail-tornado.md#9-suggested-technical-seams-when-approved) | `src/lib/severeDesk/layerState.js`, `layerRegistry.js`, `radarLayerStack.js` | Source-labelled, timestamped, discriminated ready/unavailable layer state | Implemented fail-closed: an unavailable or invalid state projects to labelled featureless absence, never plausible stale features | layer-foundation lane | No-network LayerState fixture seam and full consumer/browser suite |
 | SC-SD-WARNINGS | [research §4](./severe-desk-radar-hail-tornado.md#4-product-shape-fits-stormlogic-traits), [§4.2](./severe-desk-radar-hail-tornado.md#42-authority-rules-non-negotiable), [§8](./severe-desk-radar-hail-tornado.md#8-recommended-build-path) | approved alert adapter (future) | Normalises only authoritative NWS geometry, event metadata, and temporal status | Fail-closed: no geometry or valid status suppresses the polygon | official-geometry lane | Handler/adapter fixture proof |
 | SC-SD-SPC | [research §4](./severe-desk-radar-hail-tornado.md#4-product-shape-fits-stormlogic-traits), [§8](./severe-desk-radar-hail-tornado.md#8-recommended-build-path) | approved SPC adapter (future) | Normalises outlook geometry with product type and issuance time | Fail-closed unavailable state; no substituted model forecast | spc lane | Adapter fixture proof |
@@ -193,17 +193,19 @@ Waves E–G remain blocked on D-SD-04 / D-SD-05.
   fixtures recorded per source (§10.4) — **met**.
 - Status 2026-08-10: **closed.**
   [`docs/severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md)
-  v1.3. Jared ratified D-SD-01–03 (RainViewer-canonical reflectivity + NOAA
+  v1.7. Jared ratified D-SD-01–03 (RainViewer-canonical reflectivity + NOAA
   fallback), selection criteria, LayerState architecture, and the four-layer
   stack. v1.2 then closed the request-model, event-driven-clock, and count-policy
   gaps, corrected the NOAA service to **base** reflectivity, and **closed R-3**
-  (WWA `f=geojson` verified working). The fixture checker verifies 42 recorded
-  public-safe artifacts, so Waves C/D adapter work is no longer fixture-blocked.
+  (WWA `f=geojson` verified working). v1.4 then corrected IEM attributes to
+  `valid=`-addressed snapshots; the fixture checker and its mutation harness
+  verify 47 recorded public-safe artifacts, so Waves C/D adapter work is no
+  longer fixture-blocked.
 - Authority refs: [research §4.2](./severe-desk-radar-hail-tornado.md#42-authority-rules-non-negotiable), [§9](./severe-desk-radar-hail-tornado.md#9-suggested-technical-seams-when-approved), [provider contract §10.4](./severe-desk-provider-contracts.md#104-contract-fixture-set-status-corrected-in-v12); user private-use clarification; ratification 2026-08-10.
 - Allowed write scope: decision record (done) and fixture metadata only.
 - Acceptance evidence: ratified source links, cache/freshness/unavailable rules,
-  and 42 hash-verified nominal/empty/malformed/upstream-failure and targeted
-  regression fixtures (`node scripts/severe-desk-fixture-check.mjs`) — **met**.
+  and 46 hash-verified nominal/empty/malformed/upstream-failure and targeted
+  regression fixtures plus assertion mutation proof (`npm run test:severe-desk-fixture-assertions`) — **met**.
 - Coder rule: Implement only cited behavior; every uncited path or solution is a blocker requiring approved authority.
 
 ### T-SD-01: retain current-source honesty
@@ -302,16 +304,18 @@ Waves E–G remain blocked on D-SD-04 / D-SD-05.
   composition provides separately-clocked overlays and a clear authority legend.
 - Closure gate: a divergent-clock fixture proves report, attribute, and radar
   data remain separate and out-of-window data is not rendered.
-- Status: **closed 2026-08-10.** Recorded IEM contracts and the Radar browser
-  seam prove a six-hour report window, independent scan tolerance, client-side
-  scope disclosure, no invented track, and featureless out-of-window absence.
+- Status: **closed 2026-08-11.** Recorded IEM contracts and the Radar browser
+  seam prove an exact six-hour report window, `valid=`-addressed per-site scan
+  snapshots with no client re-windowing, client-side scope disclosure, no
+  invented track, and frame applicability distinct from source health.
 - Authority refs: [research §3](./severe-desk-radar-hail-tornado.md#3-what-tracking-means-do-not-mix-layers), [§4](./severe-desk-radar-hail-tornado.md#4-product-shape-fits-stormlogic-traits), [§4.2](./severe-desk-radar-hail-tornado.md#42-authority-rules-non-negotiable), [§8](./severe-desk-radar-hail-tornado.md#8-recommended-build-path), [§9](./severe-desk-radar-hail-tornado.md#9-suggested-technical-seams-when-approved).
 - Allowed write scope: each adapter owns its proxy/client/normaliser; only
   T-SD-22 may edit `RadarPanel` and shared map controls.
 - Executable scope: the recorded IEM contracts have no server-side regional
-  filter. LSR is a six-hour `sts`/`ets` source window and attributes are a
-  singleton source; both are visibly bounded to the current map only after
-  normalisation. Pan/zoom redraws markers but never issues an IEM request.
+  filter. LSR is an exact six-hour `sts`/`ets` source window; attributes are
+  immutable `valid=` buckets, one per selected observed frame. Both are visibly
+  bounded to the current map only after normalisation. Pan/zoom redraws markers
+  but never issues an IEM request; play never drives per-frame provider traffic.
 - Acceptance evidence: focused adapter contracts, Radar/browser/contrast proof,
   and full `npm test` before Wave 2 closes.
 - Coder rule: Implement only cited behavior; every uncited path or solution is a blocker requiring approved authority.
@@ -339,8 +343,8 @@ Waves E–G remain blocked on D-SD-04 / D-SD-05.
 - Wave 0 evidence: live provider documentation review and ratified decision
   record
   ([`severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md)
-  v1.3). Public-safe contract fixtures are **required, not recommended** — the
-  42-entry checker passes and completes the second half of T-SD-00. Wave 0 is
+  v1.7). Public-safe contract fixtures are **required, not recommended** — the
+  47-entry checker plus mutation suite passes and completes the second half of T-SD-00. Wave 0 is
   not live meteorological validation in either half.
 - Any approved code Wave: behavior-first proof at the declared adapter or map
   consumer seam, `npm run build`, focused relevant checks, desktop/mobile smoke,

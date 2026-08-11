@@ -99,10 +99,24 @@ const RADAR_TARGETS = [
   ['.radar__provenance', 'radar product provenance'],
   ['.radar__official-layers-head p', 'official layers description'],
   ['.radar__layer-toggle', 'official layer control'],
-  ['.radar__layer-source', 'official layer source'],
-  ['.radar__layer-time', 'official layer time'],
-  ['.radar__layer-status', 'official layer unavailable state'],
+  ['.radar__layer-pill-label', 'layer pill name'],
+  ['.radar__layer-pill-state', 'layer pill on/off state'],
+  ['.radar__layer-pill-count', 'layer pill count'],
+  ['.radar__layer-info', 'layer detail control'],
   ['.radar__credit', 'radar attribution'],
+]
+
+// Source, timing, health, and frame coupling moved into a panel revealed on
+// hover/focus. That is where this product's provenance now lives, so it still
+// has to meet contrast — measured in the revealed state, against the panel's
+// own surface, rather than skipped because it starts hidden.
+const RADAR_DETAIL_TARGETS = [
+  ['.radar__layer-source', 'layer source'],
+  ['.radar__layer-time', 'layer time'],
+  ['.radar__layer-health', 'layer source health'],
+  ['.radar__layer-frame', 'layer frame coupling'],
+  ['.radar__layer-scope', 'layer scope note'],
+  ['.radar__layer-status', 'layer unavailable state'],
 ]
 
 // Present only after an alert hands the user to Radar with an official area.
@@ -386,8 +400,17 @@ for (const theme of themesToCheck) {
   const rows = []
 
   async function measure(selector, label) {
-    const el = page.locator(selector).first()
+    await measureLocator(page.locator(selector).first(), label)
+  }
+
+  async function measureLocator(el, label) {
     if (!(await el.count())) return
+    // A target that exists but is not painted cannot be measured, and silently
+    // skipping it would let hidden text drift out of contrast unnoticed.
+    if (!(await el.isVisible())) {
+      failures.push(`${theme.name} · ${label}: present but not visible, so contrast could not be measured`)
+      return
+    }
 
     const style = await el.evaluate((n) => {
       const cs = getComputedStyle(n)
@@ -424,6 +447,22 @@ for (const theme of themesToCheck) {
   await page.waitForSelector('.radar__tick', { timeout: 15000 })
   await page.waitForTimeout(400)
   for (const [selector, label] of RADAR_TARGETS) await measure(selector, label)
+
+  // Reveal each layer's detail panel and measure it in that state. Scoping to
+  // the hovered layer matters: an unhovered sibling's panel is still hidden,
+  // and a bare `.first()` would land on it.
+  const layerIds = await page.locator('.radar__layer').evaluateAll(
+    (elements) => elements.map((element) => element.getAttribute('data-layer-id')),
+  )
+  for (const layerId of layerIds) {
+    const layer = page.locator(`.radar__layer[data-layer-id="${layerId}"]`)
+    await layer.hover()
+    for (const [child, label] of RADAR_DETAIL_TARGETS) {
+      await measureLocator(layer.locator(child).first(), `${label} (${layerId})`)
+    }
+  }
+  // Leave the hover state so later passes measure their own chrome unobscured.
+  await page.mouse.move(0, 0)
 
   await page.locator('.tabs button', { hasText: 'Alerts' }).click()
   await page.waitForSelector('.alert', { timeout: 10000 })

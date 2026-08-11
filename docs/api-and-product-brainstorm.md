@@ -1,7 +1,7 @@
 ---
 title: "API inventory and product brainstorm"
 date: 2026-08-10
-version: 1.8
+version: 1.9
 status: Draft
 owner: Jared
 category: research
@@ -19,7 +19,7 @@ tags:
 # API inventory and product brainstorm
 
 - **Date**: 2026-08-10
-- **Version**: 1.8
+- **Version**: 1.9
 - **Status**: Draft
 - **Owner**: Jared
 
@@ -357,9 +357,9 @@ about unavailable data without creating a second navigation job.
   [`docs/severe-desk-waved-roadmap.md`](./severe-desk-waved-roadmap.md).
   **Wave 0 provider sources ratified 2026-08-10**
   ([`docs/severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md)
-  v1.2 — sources accepted, contract fixtures pending). Code waves A–D still need
-  explicit implementation approval, and C–D additionally need recorded fixtures;
-  E–G remain blocked on MESH/interrogation/lightning foundations.
+  v1.7 — sources accepted; Waves 0–D locally verified with 47 contract fixtures
+  and mutation proof). E–G remain blocked on MESH/interrogation/lightning
+  foundations; trusted live-event validation is still a user-operated release gate.
 
 ---
 
@@ -376,3 +376,4 @@ about unavailable data without creating a second navigation job.
 | 1.6 | 2026-08-10 | Linked deferred severe-desk research (storm/tornado/hail + free vs paid APIs) |
 | 1.7 | 2026-08-10 | Severe-desk Wave 0 provider contracts ratified (binding sources/time/load) |
 | 1.8 | 2026-08-10 | Severe-desk Wave 0 restated: sources accepted, contract fixtures pending and gating Waves C–D |
+| 1.9 | 2026-08-11 | Severe-desk Waves 0–D locally verified; IEM `valid=` correction, 46 fixtures, mutation proof, and live-event validation boundary recorded |

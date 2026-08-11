@@ -1,8 +1,8 @@
 ---
 title: "Severe desk provider contracts: verified sources, architecture, and path forward"
 date: 2026-08-10
-version: 1.3
-status: Sources accepted; Wave 0 fixture closure complete
+version: 1.7
+status: Sources accepted; Waves 0–D locally verified
 owner: Jared
 category: adr
 tags:
@@ -19,9 +19,9 @@ tags:
 # Severe desk provider contracts
 
 - **Date**: 2026-08-10
-- **Version**: 1.3
-- **Status**: **Sources accepted — Wave 0 ratified 2026-08-10; fixture closure
-  complete 2026-08-11.** This document is the binding provider contract for Waves B–D. The
+- **Version**: 1.7
+- **Status**: **Sources accepted — Waves 0–D are implementation-complete and
+  locally verified 2026-08-11.** This document is the binding provider contract for Waves B–D. The
   **source, time, and load decisions below are locked**; they are not reopened by
   anything outstanding. `SC-SD-PROVIDER` is **decision-accepted, fixture-closed**:
   recorded contract fixtures (§10.4) are available before **source-adapter work
@@ -48,10 +48,57 @@ tags:
 > profile: one contiguous-state/District-of-Columbia `Place.admin1` mapping,
 > a fixed Census-derived SPC envelope, and a 750 ms selected-place settle with
 > no map-gesture refetch. Wave D records the IEM boundary actually captured:
-> a six-hour global LSR window and a parameterless global attributes feed,
+> a six-hour global LSR window and a ~~parameterless global attributes feed~~
+> **(false — corrected in v1.4, §6.5)** attributes feed,
 > each visibly restricted client-side after normalisation. Alaska, Hawaii,
 > territories, foreign, and unknown places remain typed `not-configured` until
 > their own geometry/coverage contract exists.
+
+> **v1.4 correction amendment. One recorded contract was false and is
+> withdrawn.** v1.3 asserted that IEM `nexrad_attr.py` is a *parameterless*
+> feed. It is not: the endpoint accepts **`valid=<timestamp>`** and serves
+> historical per-site scan snapshots at least as far back as 2015 (§6.5,
+> evidence rows 6.5a–6.5f). The false assertion propagated into a proxy that
+> rejects every query parameter, a coordinator that could therefore never
+> align attributes to any past frame, and a provenance line that reports
+> request-generation time as observation time. §6.5, §7 (attributes clock),
+> §7.1 (nearest-frame tolerance), §8.3, and §10.4 change. **No source choice
+> changes.** No layer is added or removed.
+
+> **v1.5 implementation closure.** The v1.4 correction is now executable:
+> the IEM proxy allow-lists and forwards `valid=`, retries one transient IEM
+> timeout/5xx, and its adapter validates returned scan proximity to the
+> request (the original bracketing rule is superseded by v1.7) and reports
+> feature scan time (never `generated_at`) as provenance.
+> Historical snapshots are cached by distinct
+> frame identity; LSR re-queries its exact six-hour window on its declared
+> one-minute poll, while the image animation never drives provider traffic.
+> Radar now shows visibility, source health, and frame applicability as three
+> distinct channels, with matching layer colors/counts and a truthful selected
+> frame label. Local fixture, mutation, browser, and Netlify-runtime proof pass.
+
+> **v1.6 residual closure.** Three gaps left open by v1.5. The RainViewer index
+> is now re-fetched on its own half-cadence (and on tab re-entry) instead of
+> once per mount, so a Radar tab left open can no longer present a mount-time
+> frame as the live edge while every card beneath it reports healthy —
+> selection survives the moving window by frame identity, not array position
+> (**§7.1 unchanged; this is a client defect, not a contract change**). Drawn
+> geometry now reads its colour from the layer registry that the cards and map
+> legend already read, so a legend swatch cannot drift from what is drawn.
+> **New rule: §7.1 gains the feed-currency vs. archival-query distinction** —
+> freshness is frozen for a request that names a past instant, because
+> re-ageing a finished scan reports correct historical evidence as a dead
+> source. No source choice changed.
+
+> **v1.7 live-edge correction.** The v1.4–v1.6 rule requiring `valid=` scan
+> times to *bracket* the requested instant is withdrawn. It was inferred from
+> historical probes and rejects a healthy live-edge selection, where every
+> independently scanned NEXRAD site can legitimately be before the requested
+> instant. The executable guard is now **all returned scans within 20 minutes
+> of `valid=`, in either direction**. That accepts the recorded one-sided live
+> edge (1,346 cells, −17.0…−3.6 min) while still rejecting IEM's 85–97 min
+> silent-unknown-parameter fail-open. §6.5, §7.1, and §10.4 are amended; one
+> live one-sided fixture makes the prior defect non-representable in the gate.
 
 ---
 
@@ -315,6 +362,15 @@ Two consequences for this repo:
 | 8.2 | `/alerts/active` has **no `limit` and no pagination**; returns the complete filtered set **`[v1.2]`** | `api.weather.gov/openapi.json` parameter list; `limit` → *"not recognized"* | High — spec plus live rejection |
 | 8.2 | ArcGIS layers support `returnCountOnly=true` and signal `exceededTransferLimit` **`[v1.2]`** | WWA query probe returning `{"count":40}` | High — observed |
 | 3.6 | No MESH in NOAA hosted catalogue | Enumerated `raster/rest/services` and `.../obs` | High — exhaustive folder enumeration |
+| 6.5a | `nexrad_attr.py` accepts **`valid=`** and serves history — v1.3's "parameterless" claim is **false** **`[v1.4]`** | Live probes 2026-08-11: `valid=` at 12:40Z / 13:40Z / 14:40Z returned three distinct snapshots (724 / 780 / 833 features) whose scan times cluster on the requested time | High — observed, reproducible |
+| 6.5b | `valid=` returns **one scan per radar site**, selected upstream **`[v1.4]`** | Three probes at 10:00Z / 10:05Z / 10:10Z: 75 / 72 / 76 sites, **0 sites carrying more than one scan** | High — observed |
+| 6.5c | Historical `valid=` probes cluster **≈ ±8 min**, but that is **not** a universal bracketing guarantee **`[corrected v1.7]`** | Historical probes: −7.7…+7.4, −5.0…+8.1, −8.2…+8.3 minutes; live edge `valid=2026-08-11T19:00Z`: 1,346 cells, **−17.0…−3.6 min only** | High — observed; direction varies with site scan completion |
+| 6.5i | A valid response is accepted when **every scan is within 20 min of `valid=`**, regardless of whether the range brackets it **`[v1.7]`** | One-sided live-edge capture accepts at −17.0…−3.6 min; ignored-parameter fixture remains +85.5…+97.2 min and fails | High — executable fixture assertion |
+| 6.5d | A future `valid=` **inside the accepted range** returns **HTTP 200 with zero features**, not an error **`[v1.4]`** | `valid=` at now+2 h, now+10 d, and 2030-01-01 → `200`, `features: []` | High — observed |
+| 6.5h | The accepted range is **`>= 2000-01-01`**; below it is a **422 range validation**, above ~2030 is an **unhandled 500** **`[v1.4]`** | `valid=1990-01-01` → `422` quoting `'Input should be greater than or equal to 2000-01-01T00:00:00'`; sweep found 2030-01-01 → `200`, 2031-01-01 → `500`, through 2099 → `500` | High — observed; **the 500 edge corrects a generalisation made from near-future probes alone** |
+| 6.5e | A **malformed** `valid=` returns **HTTP 422 with a non-JSON body** **`[v1.4]`** | `valid=not-a-time` → `422`, body is a Python repr: `[{'type': 'datetime_from_date_parsing', 'loc': ('query', 'valid'), ...}]` — single-quoted, **`JSON.parse` throws** | High — observed verbatim |
+| 6.5f | **Unrecognised parameters are silently ignored**, returning the current snapshot **`[v1.4]`** | `?zzz=1` and `?sts=…&ets=…` both returned the *current* feed, not an error — `sts`/`ets` are **not supported** on this endpoint | High — observed; **fail-open hazard** |
+| 6.5g | `generated_at` is **request-generation** time, not observation time **`[v1.4]`** | A `valid=2026-08-11T12:40:00Z` request returned `generated_at 2026-08-11T14:49:45Z` — two hours after every scan in its own payload | High — observed |
 | 3.7 | IEM public domain, no warranty | mesonet.agron.iastate.edu/disclaimer.php | High — verbatim quote |
 | 3.7 | NWS rate limit unpublished; UA required; no fees | weather.gov/documentation/services-web-api | High — verbatim quote |
 | 3.7 | idpgis shut down 2023-06-29 | weather.gov/gis/WebServices migration notice | High |
@@ -448,6 +504,55 @@ the region-basis difference rides along with the source line.
 
 ---
 
+### 6.5 The IEM storm-attributes request model (**new in v1.4 — withdraws a false v1.3 assertion**)
+
+v1.3 recorded storm attributes as "a parameterless global attributes feed."
+**That is false.** `geojson/nexrad_attr.py` accepts a temporal parameter and
+serves history. The recorded request contract is now:
+
+| Property | Recorded behaviour |
+|---|---|
+| Temporal parameter | **`valid=<timestamp>`**. Absent or empty → the current snapshot. |
+| Accepted formats | `2026-08-11T10:00:00Z`, the same without `Z`, space-separated (`2026-08-11 10:00:00`), and **date-only** (`2026-08-11`, read as that date at 00:00 UTC). |
+| Selection semantics | **One scan per NEXRAD site**, chosen upstream. Historical probes cluster around the request, but a live edge can be entirely before it: 1,346 captured cells spanned **−17.0…−3.6 min** at `valid=2026-08-11T19:00Z`. A nonempty response is valid when **every scan is within 20 min** of the request; it need not bracket it. Verified: 0 of 75/72/76 sites returned more than one scan. |
+| Accepted range | **`valid >= 2000-01-01T00:00:00`**, enforced upstream. Data is present at least back to **2015-06-01** (probe returned 381 features). No retention limit applies at a two-hour timeline. |
+| Below range | **HTTP 422**, verbatim: `'Input should be greater than or equal to 2000-01-01T00:00:00'` — a Pydantic range validator, distinct from the parse error below. |
+| Future request **in** range | **HTTP 200 with an empty `features` array** — this is `emptiness: 'no-data-in-window'` under §7.2 rule 3, **never** `unavailable`. Verified at +1 d, +10 d, and 2030-01-01. |
+| Above range | **HTTP 500** — an *unhandled* server error, not a validation rejection. Boundary observed between **2030-01-01 (200)** and **2031-01-01 (500)**. Irrelevant at a two-hour timeline but recorded: a skewed clock or bad date arithmetic gets a 500, not a clean 4xx, so the adapter must not treat 5xx as "impossible input". |
+| Malformed `valid` | **HTTP 422** whose body is a **Python repr, not JSON** (single-quoted keys). A proxy that calls `.json()` on this path throws. Parse defensively or discard the body. |
+| Unknown parameters | **Silently ignored.** `?zzz=1` and `?sts=…&ets=…` return the *current* feed. `sts`/`ets` are **not supported here** (they belong to `lsr.py`). |
+| Spatial parameter | **Still none.** The v1.3 client-side scoping rule stands unchanged. |
+
+**Two consequences are binding on implementation.**
+
+**(a) `generated_at` is not an observation time.** It is stamped when IEM
+generates the response. A request for 12:40Z data returned
+`generated_at 14:49:45Z`. The observation clock for this layer is the
+**per-feature `properties.valid`** scan time — nothing else. Any adapter that
+assigns `generated_at` to `clock.observedAt` reports *when we asked* under a
+label that reads as *when it was observed*, which §7's whole premise forbids.
+
+**(b) Upstream already performs the per-site nearest-scan selection.** The
+alignment work is done server-side, correctly, for the requested time. A client
+that re-filters the result against a tolerance of its own can only *discard*
+correct data — NEXRAD sites volume-scan on independent clocks, so a single
+snapshot can be one-sided at the live edge and span at least 17 minutes. **The
+client does not re-window an upstream `valid=` response.** It does retain one
+fail-open guard: every returned scan must be within **20 minutes** of the named
+instant, regardless of direction. This is input validation, not a rendering
+window: it rejects a silently ignored `valid=` query without rejecting a valid
+one-sided live edge.
+
+**The fail-open hazard, recorded explicitly.** Because unknown parameters are
+ignored rather than rejected, a misspelled parameter does not fail — it returns
+*current* data that will be silently presented as historical. This is the one
+failure mode on this endpoint that cannot be caught by status code, so it must
+be caught by assertion: after a `valid=` request, an adapter **must** verify
+that every returned scan is within **20 minutes** of the requested time, and
+treat a mismatch as `upstream-error`. The range need not bracket the request.
+
+---
+
 ## 7. Decision D-SD-02 — time contract (**ratified 2026-08-10**)
 
 Every layer carries its **own** clock. The map's selected time is a *query*
@@ -462,7 +567,7 @@ cadences:
 | NOAA reflectivity | 5 min data, ~10 min extent | observation time (epoch ms) |
 | RainViewer | ~10 min public index | frame time; nowcast frames are *forecast*, flagged distinctly |
 | IEM LSR | report-driven, sparse and delayed | **report time**, not receipt time |
-| IEM storm attributes | per volume scan (~4–6 min) | scan / volume time |
+| IEM storm attributes | per volume scan (~4–6 min), **staggered per site** | **per-feature `properties.valid`** scan time. **`[v1.4]`** `generated_at` is request-generation time and must never be used as the observation clock (§6.5a) |
 
 ### 7.1 Freshness state machine
 
@@ -480,11 +585,67 @@ This table governs **cadenced** layers. Event-driven layers (alerts, LSR) do not
 have a cadence to take multiples of, and v1.1's one-line substitution rule was
 not sufficient to implement them — see **§7.2**, which replaces it.
 
-**Nearest-frame tolerance:** a layer may render at a selected map time only if
-a sample exists within ±1× its cadence. Outside that, the layer is
-`unavailable` **for that time** — it does not borrow the nearest sample and it
-does not interpolate. This is the concrete mechanism behind the roadmap's
-"no data invented outside each layer's valid window."
+**Nearest-frame tolerance:** a client-held layer may render at a selected map
+time only if a sample exists within ±1× its cadence. Outside that it is a
+**frame-applicability absence**, not an unavailable provider — it does not
+borrow the nearest sample and it does not interpolate. This is the concrete
+mechanism behind the roadmap's "no data invented outside each layer's valid
+window."
+
+**`[v1.4]` The tolerance applies to *client-held* samples only — and it is not
+an availability state.** Two corrections, both forced by shipped defects:
+
+*Scope.* The rule exists to stop us from presenting a sample we hold as if it
+described a different moment. It therefore governs a layer where **we** hold a
+series and pick from it. It does **not** govern a layer we re-request per
+selected time, where the upstream performs the selection itself against that
+time (§6.5b). Re-applying a client tolerance to such a response cannot improve
+correctness — it can only discard data the source already matched. Concretely:
+storm attributes fetched with `valid=` are **not** re-windowed client-side.
+Applying a ±5 min client gate to a ~10 min frame grid and a ~17 min per-site
+scan spread makes most frames unrenderable **by arithmetic**, which is what
+shipped.
+
+**`[v1.7]` Provider validation is separate from client tolerance.** `valid=`
+responses retain the upstream-selected scan set, including a one-sided live
+edge. The adapter only rejects a nonempty response when **any** returned scan
+is more than 20 minutes from its named request; the sign is irrelevant. This
+bounded proximity guard catches the R-10 ignored-parameter response without
+reintroducing a client-side temporal rendering gate.
+
+*State.* "No sample aligns with the selected time" is **not** the same
+condition as "the source failed," and v1.1–v1.3 typed both as `unavailable`
+with only `reason` to separate them — a distinction the UI was free to
+discard, and did. The two must be separable **without reading `reason`**:
+
+| Condition | Meaning | Obligation |
+|---|---|---|
+| Provider health | fetch failed, payload malformed, or age > 6× cadence | `unavailable` — labelled absence, never last-good data |
+| Frame applicability | source healthy; no sample matches **this** selected time | a distinct, non-alarming state. The source is **not** broken and must not be described as such. |
+
+A layer that is healthy, current, and merely unmatched to the scrubbed frame
+**must not** render under the same words as a dead provider. On a severe-weather
+product that miscommunication is a safety defect, not a copy defect.
+
+**`[v1.6]` Feed currency vs. archival query — freshness does not apply to a
+completed past selection.** The ladder above measures how long ago we *polled*,
+which is the right question for a layer that tracks a moving present. It is the
+wrong question, and produces a false answer, for a request that addresses a
+**named past instant**. IEM `valid=` (§6.5) is such a request: the scans it
+returns are finished, so the response is immutable and cannot decay. Re-ageing
+it against wall-clock time would drive a legitimately historical frame past
+6× cadence into `stale-expired` purely because the viewer kept the tab open —
+labelling correct archival data as a failed source, which is precisely the
+conflation §7.1 exists to prevent.
+
+| Request shape | Freshness question | Rule |
+|---|---|---|
+| Live feed (no time argument) | "how stale is our copy of *now*?" | the ladder above; re-evaluate on the declared poll cadence |
+| Archival query (`valid=`, or any named past instant) | none — the answer is final | **freeze freshness at capture.** Never re-age. Cache may be long-lived (§8.3) |
+
+The distinction is *the request*, not the layer: the same source is cadenced
+when asked for the present and archival when asked for a past instant. A layer
+whose live edge is fetched without a time argument still re-polls normally.
 
 **The fail-closed rule, stated once:** `unavailable` renders a labelled absence.
 Stale-plausible data is a worse failure than a visible hole, because a hole is
@@ -644,18 +805,40 @@ users coalesce.
 | Warnings | `region + event-filter` | 30 s | 60 s |
 | SPC outlook | `day + hazard + region` | 300 s | 600 s |
 | LSR | `window` | 60 s | 120 s |
-| Storm attributes | singleton source | 120 s | 240 s |
+| Storm attributes | **`[v1.4]`** `valid` bucket (absent = the live snapshot) | 120 s live; **historical `valid=` is immutable — 24 h CDN / session cache** | 240 s live; 7 d historical |
 | Reflectivity | tile/WMS-native | provider default | — |
 
-**Wave-D executable profile.** The recorded IEM contracts establish a six-hour
-`sts`/`ets` LSR window and a parameterless attributes source, but do **not**
-establish a server-side region filter. The desk therefore makes no regional
-claim about either upstream request: reports use `window`, attributes use a
-singleton source key, and both marker sets are restricted to the visible map
-only after normalisation in the browser. The source line says so explicitly.
-Panning merely redraws that bounded client-side view; it never becomes an IEM
-request. A future regional IEM query needs its own recorded request contract
-before this profile can change.
+**Wave-D executable profile `[corrected v1.4]`.** The recorded IEM contracts
+establish a six-hour `sts`/`ets` LSR window and — **corrected** — a
+**`valid=`-addressable** attributes source (§6.5), but neither establishes a
+server-side region filter. The **spatial** half of this profile is unchanged
+and still correct: the desk makes no regional claim about either upstream
+request, both marker sets are restricted to the visible map only after
+normalisation in the browser, the source line says so explicitly, and panning
+merely redraws that bounded client-side view without becoming an IEM request.
+A future regional IEM query still needs its own recorded request contract.
+
+The **temporal** half is withdrawn. Attributes are no longer keyed as a
+singleton: each selected frame addresses its own `valid` bucket. Two properties
+follow, and both are cache-relevant:
+
+- A historical `valid=` response is **immutable** — the scans it describes are
+  finished. It may be cached far more aggressively than the 120 s live TTL.
+- The **live** (parameterless) response remains mutable and keeps 120 s / 240 s.
+
+**Request-volume note.** Addressing frames individually means a fetch per
+distinct frame rather than one per mount. This is bounded, not open-ended: the
+free RainViewer index carries ~13 past frames, each frame's response is
+immutable once fetched, and cached frames are never refetched. It must not be
+driven from the animation tick — a play loop cycling frames every 500 ms would
+otherwise emit requests at 2 Hz. Fetch per *distinct frame identity*, once.
+
+**`[v1.4]` Proxy obligation.** The proxy must forward `valid=` and reject
+unrecognised parameters itself. Blanket parameter rejection is withdrawn: it
+enforced the false v1.3 contract. Blanket parameter *forwarding* is equally
+wrong — §6.5f records that IEM silently ignores unknown parameters, so an
+unvalidated pass-through converts a client typo into confidently-mislabelled
+current data. Allow-list `valid`; reject anything else at the proxy.
 
 **`[corrected v1.2]`** v1.1 justified these as *"roughly half the upstream
 cadence."* That rationale is true for two rows and false for two, so it is
@@ -876,11 +1059,55 @@ rule 3 is only testable against it. Plus these targeted captures:
   distinction (§3.1) is pinned by a fixture rather than by prose.
 - **`[v1.2]` NWS request model:** capture a multi-state `area=` response and a
   400 from a malformed `area` — §6.4's request model is otherwise unproven.
+- **`[v1.4]` IEM attributes `valid=` request model — CAPTURED 2026-08-11.** The
+  original four `iem-attributes` fixtures all record the parameterless request
+  `GET /geojson/nexrad_attr.py`; **none exercises `valid=`.** They were
+  captured against the contract §6.5 withdraws, so they are sound for the live
+  snapshot and prove nothing about the corrected one. Five live captures now
+  close that gap, each its own manifest entry:
+  - a **historical** `valid=` response, with the assertion that its scan times
+    stay within the requested proximity (§6.5's fail-open check is otherwise
+    untested);
+  - a **one-sided live-edge** `valid=` response, proving scans before the
+    request remain healthy when every scan is within the 20-minute bound;
+  - a **future** `valid=` → HTTP 200 + empty `features`, which is the only
+    fixture that can prove future-frame selection renders
+    `emptiness: 'no-data-in-window'` and **not** `unavailable` (§7.2 rule 3);
+  - a **malformed** `valid=` → HTTP 422 with its **non-JSON Python-repr body**
+    recorded verbatim, so the proxy's error path is pinned against a body that
+    `JSON.parse` rejects (§6.5e);
+  - an **ignored-parameter** capture (`?zzz=1` returning the current snapshot),
+    which is the regression test for §6.5f's fail-open hazard — the one failure
+    mode no status code reveals.
+
+**`[v1.4]` Closure status — re-opened for one source, then re-closed.** The
+2026-08-11 closure below was verified for `iem-attributes` against a request
+contract since withdrawn (§6.5). Its four original artifacts remain valid for
+the live parameterless snapshot; they are simply **silent on `valid=`**. Under
+this section's own rule — *no adapter may be written against a schema nobody
+has captured* — the attributes adapter rewrite was fixture-blocked. **The four
+`valid=` captures above were recorded on 2026-08-11 and lift that block.** No
+source decision re-opened; nothing else in Wave C or D was affected.
+
+**`[v1.7]` These five fixtures carry executable assertions, not just
+checksums.** A SHA-256 pins bytes but cannot express a *relationship*, and
+§6.5f's fail-open has exactly that shape: an ignored parameter returns a
+well-formed FeatureCollection with a perfectly stable checksum that merely
+describes the wrong instant. No status code, content type, or hash separates it
+from a correct response. `severe-desk-fixture-check.mjs` therefore evaluates
+five assertions — historical and one-sided live-edge scans stay within the
+20-minute proximity bound; the future capture is empty; the 422 body refuses
+`JSON.parse`; and the ignored-parameter capture falls **outside** the bound.
+Each was verified to fail under mutation (moved request instant, duplicated
+site scan, non-empty future, JSON-ified 422 body, honoured parameter, and a
+one-sided capture moved beyond the bound) before being accepted as evidence. A
+gate never observed failing is not a gate.
 
 **Closure evidence (2026-08-11):** `node scripts/severe-desk-fixture-check.mjs`
-verifies **42** checksummed artifacts: every source has nominal, empty,
-malformed, and upstream-failure coverage; the targeted NWS, WWA, SPC, LSR, and
-MRMS captures above are present. Live artifacts are public provider responses;
+verifies **47** checksummed artifacts (**42 at v1.3, plus five `valid=`
+captures added through v1.7**): every source has nominal, empty, malformed, and
+upstream-failure coverage; the targeted NWS, WWA, SPC, LSR, MRMS, and IEM
+`valid=` captures above are present. Live artifacts are public provider responses;
 constructed entries are labelled in the manifest and are limited to failure or
 otherwise unavailable input shapes. The live WWA capture records
 `exceededTransferLimit: true` and the paired live `returnCountOnly` response.
@@ -963,6 +1190,9 @@ regression fixture, because the behaviour is undocumented (§3.5).
 | R-7 | **`[v1.2]`** Reflectivity fallback is **base**, canonical is **composite** — failing over changes what a pixel means and can drop elevated cores (§3.1) | `source.product` is required and legend-rendered; §10.3 rules 3–4 force the product change and the nowcast loss to be visible. |
 | R-8 | **`[v1.2]`** A calm day and a broken feed both produce zero features | `emptiness` discriminator (§7.2 rule 3); `reason: 'no-data'` removed from the `unavailable` variant so the type system cannot express the conflation. Calm-day fixture required (§10.4). |
 | R-9 | **`[v1.2]`** ArcGIS `exceededTransferLimit` could be read as a complete set, disclosing a false exact count | §8.2: `truncated.exact = false` → render `"250+"`; never present an unverified total as exact. |
+| R-10 | **`[v1.4, corrected v1.7]`** IEM **silently ignores** unknown parameters, so a malformed or misspelled `valid=` returns *current* data that would be presented as historical — a fail-open no status code reveals | §6.5: proxy allow-lists `valid` and rejects everything else; adapter requires every returned scan to be within 20 min of the requested time (not to bracket it) and types a mismatch as `upstream-error`. Regression fixtures cover both the fail-open and a valid one-sided live edge (§10.4). |
+| R-11 | **`[v1.4]`** A healthy source that merely has no sample at the *selected frame* was typed `unavailable`, so the UI described working data as a failed provider | §7.1: frame applicability is a state separate from provider health, distinguishable **without** reading `reason`. Sibling of R-8 — the same conflation, on the time axis rather than the emptiness axis. |
+| R-12 | **`[v1.4]`** A **negative** contract claim ("this endpoint has no such parameter") was recorded as verified, and was false for ~24 h of downstream design | Absence is not observable by probing the happy path. Negative claims about a request surface now require either provider documentation or a probe that *attempted* the parameter and recorded its rejection. §6.5's envelope is recorded positively, parameter by parameter. |
 
 ### Rejected
 
@@ -982,3 +1212,7 @@ should not be reconsidered on the grounds that it is free.
 | 1.1 | 2026-08-10 | **Accepted.** Jared ratified D-SD-01–03, selection criteria, LayerState architecture (required `authority`; `unavailable` without `features`), four-layer stack, and RainViewer-canonical reflectivity with NOAA WMS fallback. D-SD-04/05 remain open. Residual fixture capture does not re-open source choices. |
 | 1.2 | 2026-08-10 | **Post-ratification review amendment. No source choice changed.** Corrected: the NOAA service is **base**, not composite, reflectivity (§3.1) — the fallback is a product substitution, so §6.1, §10.3, and R-7 now require the product change and nowcast loss to be user-visible. Closed four dispatch-blocking gaps: NWS request model (§6.4 — `area=` state codes only; `region` verified **marine-only**), event-driven clocks (§7.2 — feed clock vs. content clock, and empty ≠ unavailable), count/pagination policy (§8.2 — NWS/IEM exact, ArcGIS `returnCountOnly`, `"250+"` on failure), and the §8.3 TTL rationale. `LayerState` gains `authority: 'observation'`, required `product`, `isFallback`, `emptiness`, and a richer `truncated`; `reason: 'no-data'` deleted. **R-3 closed by live probe** — WWA serves `f=geojson`, though undocumented. Fixtures reclassified from residual evidence to a **prerequisite for Waves C/D** (§10.4); Wave B remains independently approvable. |
 | 1.3 | 2026-08-10 | **Wave C/D execution amendment.** Ratifies the initial contiguous-state + DC `Place.admin1` desk registry and fixed Census envelopes, with 750 ms selected-place settling and no viewport query. Makes the IEM runtime model explicit: the recorded source contracts provide global LSR-window and global attributes requests only; all map scope is visibly client-side after normalisation. Unsupported noncontiguous, territorial, foreign, and unknown places fail closed. |
+| 1.4 | 2026-08-11 | **Correction amendment — a recorded contract was false. No source choice changed; no layer added or removed.** v1.3's "parameterless global attributes feed" is **withdrawn**: IEM `nexrad_attr.py` accepts **`valid=`** and serves per-site historical scan snapshots back to at least 2015 (**new §6.5**, evidence 6.5a–6.5g). Records the full request envelope — accepted formats, historical upstream per-site selection within ≈±8 min, future→`200`+empty, malformed→`422` with a **non-JSON** body, and **silent ignoring of unknown parameters** as a fail-open hazard requiring an adapter-side assertion (bracketing was later corrected in v1.7). Fixes provenance: `generated_at` is request-generation time; the observation clock is per-feature `properties.valid`. **§7.1 amended twice** — the nearest-frame tolerance governs *client-held* samples only and must not re-window an upstream `valid=` response, and *frame applicability* is separated from *provider health* so a healthy-but-unmatched layer can no longer render as a failed one. §8.3 re-keys attributes from a singleton to a `valid` bucket (historical responses immutable), and replaces blanket parameter rejection with a `valid`-only allow-list. §10.4 **re-opens fixture coverage for `iem-attributes` only** — all four existing artifacts record the parameterless request and are silent on `valid=`, so the attributes adapter rewrite is fixture-blocked until four named captures exist. Spatial model unchanged: still no upstream region filter; scope stays visibly client-side. |
+| 1.5 | 2026-08-11 | **v1.4 correction implementation closure.** Proxy, adapter, request cache, and Radar composition implement the corrected `valid=` contract. Historical response provenance comes from feature scan time; the then-recorded bracketing guard was intended to prevent IEM's silent-parameter fail-open (superseded in v1.7); one bounded proxy retry absorbs a transient cold IEM timeout/5xx; exact LSR windows poll at 60 s; immutable attributes are keyed per frame and never re-windowed or fetched by animation. Radar separates hidden/visible, provider health, and frame applicability; its labels, colors, counts, legend, and timeline are browser-proven. `npm test`, local Netlify runtime/API/browser proof, and the fixture assertion mutation suite are required release gates; a trusted live-event session remains a user-operated validation, not implied by local proof. |
+| 1.6 | 2026-08-11 | **Residual closure after v1.5. No source choice changed.** Adds one rule and records two client fixes. **New rule (§7.1): feed currency vs. archival query** — the freshness ladder measures poll age, which is the wrong question for a request naming a past instant; a `valid=` response describes finished scans, so its freshness is **frozen at capture and never re-aged**. Re-ageing would drive a legitimately historical frame past 6x cadence into `stale-expired`, labelling correct archival evidence as a failed source — the same conflation §7.1 exists to prevent. The distinction is the *request*, not the layer. Client fixes, both outside the contract: the RainViewer index is re-fetched on its half-cadence and on tab re-entry rather than once per mount (a tab left open was presenting its mount-time frame as the live edge while every card reported healthy), with selection surviving the moving window by frame identity rather than array position and per-frame tracking caches ageing out with it; and drawn geometry now reads its colour from the layer registry the cards and legend already read, so a legend swatch cannot drift from the map and two authorities can no longer share one colour. |
+| 1.7 | 2026-08-11 | **Live-edge correction.** A real `valid=2026-08-11T19:00Z` capture returned 1,346 healthy cells at −17.0…−3.6 min; it falsified the inferred bracketing rule, which rejected every cell simply because no site had yet finished a post-request scan. §6.5 and §7.1 now accept a nonempty response only when every scan is within 20 minutes of the named instant, regardless of direction. This retains the R-10 guard: the ignored-parameter fixture remains +85.5…+97.2 min away and fails closed. §10.4 adds the live one-sided fixture and a mutation that moves it beyond the bound; closure evidence is 47 hash-verified artifacts plus executable assertions. |

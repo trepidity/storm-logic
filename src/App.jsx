@@ -44,6 +44,7 @@ const DEFAULT_PLACE = normalisePlace({
 })
 
 const REFRESH_MS = 10 * 60 * 1000
+const OFFICIAL_DESK_REFRESH_MS = 30 * 1000
 
 export default function App() {
   // Lazy initialisers so storage is read once, not on every render.
@@ -173,17 +174,28 @@ export default function App() {
     ])
     setOfficialLayerRegionKey(officialDeskRegionKey)
     const controller = new AbortController()
-    const settle = setTimeout(async () => {
+    let settled = false
+    const refreshOfficialDesk = async () => {
+      if (!settled || controller.signal.aborted) return
       const now = new Date().toISOString()
       const [spc, warnings] = await Promise.all([
         fetchSpcOutlook({ hazard: 'hail', bbox: officialDeskRegion.bbox, signal: controller.signal, now }),
         fetchNwsWarnings({ areaCodes: officialDeskRegion.areaCodes, signal: controller.signal, now }),
       ])
       if (!controller.signal.aborted) setOfficialLayerStates([spc, warnings])
+    }
+    const settle = setTimeout(() => {
+      settled = true
+      refreshOfficialDesk()
     }, OFFICIAL_DESK_SETTLE_MS)
+    // Source health is a moving condition, not a label calculated once on
+    // mount. Warnings use the declared 30-second desk poll; the SPC proxy's
+    // five-minute CDN TTL coalesces repeated issuance checks.
+    const refresh = setInterval(refreshOfficialDesk, OFFICIAL_DESK_REFRESH_MS)
 
     return () => {
       clearTimeout(settle)
+      clearInterval(refresh)
       controller.abort()
     }
   }, [tab, place, officialDeskRegion, officialDeskRegionKey])

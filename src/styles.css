@@ -815,10 +815,7 @@ a {
 }
 
 .radar__official-layers {
-  padding: 12px;
-  background: var(--surface-1);
-  border: 1px solid var(--stroke-soft);
-  border-radius: var(--radius-md);
+  padding: 10px 0 2px;
 }
 
 .radar__official-layers-head p,
@@ -836,55 +833,200 @@ a {
 }
 
 .radar__layer-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 10px;
+  padding: 0;
+  list-style: none;
 }
 
 .radar__layer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
-  padding: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--stroke-soft);
-  border-radius: var(--radius-sm);
-}
-
-.radar__layer--unavailable {
-  border-left: 3px solid var(--sun-glow);
 }
 
 .radar__layer-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 0;
-  font-size: 0.86rem;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--layer-color) 52%, var(--stroke-soft));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--layer-color));
+  font-size: 0.8rem;
   font-weight: 650;
   color: var(--ink);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease;
 }
 
-.radar__layer-toggle:hover {
-  color: var(--accent);
+.radar__layer-toggle:hover,
+.radar__layer-toggle:focus-visible {
+  color: var(--ink);
+  border-color: var(--layer-color);
+}
+
+.radar__layer-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.radar__layer--hidden .radar__layer-toggle {
+  opacity: 0.58;
 }
 
 .radar__layer-indicator {
   width: 9px;
   height: 9px;
   flex: none;
-  border: 1px solid currentColor;
+  border: 1px solid var(--layer-color);
   border-radius: 50%;
-  background: currentColor;
+  background: var(--layer-color);
 }
 
 .radar__layer-toggle[aria-pressed='false'] .radar__layer-indicator {
   background: transparent;
 }
 
+.radar__layer-pill-label {
+  white-space: nowrap;
+}
+
+.radar__layer-pill-state,
+.radar__layer-pill-count {
+  padding: 2px 5px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.radar__layer-pill-state {
+  background: color-mix(in srgb, var(--surface-1) 70%, var(--layer-color));
+  color: var(--ink-soft);
+}
+
+.radar__layer-pill-count {
+  border: 1px solid color-mix(in srgb, var(--layer-color) 42%, var(--stroke-soft));
+  color: var(--ink-soft);
+}
+
+.radar__layer-pill-count--unavailable {
+  border-color: var(--ink-faint);
+}
+
 .radar__layer-detail {
   display: grid;
   gap: 3px;
-  margin-top: 7px;
+  position: absolute;
+  z-index: 1200;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(310px, calc(100vw - 48px));
+  padding: 10px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  /* Inline surfaces can be translucent because what sits behind them is known.
+     This panel floats over the layer list, the legend, and the radar map, so a
+     30%-opaque surface let arbitrary bright content through and dropped the
+     source-time line to 3.6:1 in every theme. Paint the theme's own darkest
+     sky as an opaque base, then keep the tint on top, so the panel background
+     is deterministic wherever it lands. */
+  background-color: var(--sky-top);
+  background-image: linear-gradient(var(--surface-2), var(--surface-2));
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-3px);
+  visibility: hidden;
+  transition: opacity 140ms ease, transform 140ms ease, visibility 0s linear 140ms;
+}
+
+/* Hover reveal is gated on a real hover-capable pointer. Touch browsers
+   synthesise :hover on tap and then latch it until the next tap elsewhere,
+   which leaves a panel stuck open over the map. */
+@media (hover: hover) {
+  .radar__layer:hover .radar__layer-detail {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+    transition-delay: 0s;
+  }
+}
+
+.radar__layer:focus-within .radar__layer-detail,
+.radar__layer--detail-open .radar__layer-detail {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  /* Pinned panels are readable and selectable; the hover preview stays inert. */
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.radar__layer-info {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-left: 2px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  color: var(--ink-soft);
+  background: var(--surface-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.radar__layer-info:hover,
+.radar__layer-info[aria-expanded='true'] {
+  color: var(--ink);
+  border-color: var(--stroke);
+  background: var(--glass-strong);
+}
+
+.radar__layer-info:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.radar__layer-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.radar__layer-health,
+.radar__layer-frame,
+.radar__layer-count {
+  padding: 2px 5px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.radar__layer-health--fresh {
+  border-color: #4fd06a;
+}
+
+.radar__layer-health--aging,
+.radar__layer-health--stale,
+.radar__layer-health--unavailable {
+  border-color: var(--ink-faint);
 }
 
 .radar__layer-source,
@@ -896,7 +1038,29 @@ a {
 }
 
 .radar__layer-status {
-  color: var(--sun-glow);
+  color: var(--ink-soft);
+}
+
+.radar__map-legend {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.radar__map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
+.radar__map-legend i {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--layer-color);
+  border-radius: 50%;
+  background: var(--layer-color);
 }
 
 @media (max-width: 640px) {
@@ -908,9 +1072,6 @@ a {
     height: 320px;
   }
 
-  .radar__layer-list {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ===== NWS alerts ======================================================== */

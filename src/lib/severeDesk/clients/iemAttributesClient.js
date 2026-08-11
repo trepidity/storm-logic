@@ -10,15 +10,17 @@ function pollTimestamp(now) {
  * intentionally exposes none, so it cannot claim that upstream filtered the
  * nationwide source to the desk region.
  */
-export async function fetchIemAttributesLayer(signal, { now = Date.now() } = {}) {
+export async function fetchIemAttributesLayer({ valid = null, signal, now = Date.now() } = {}) {
   const polledAt = pollTimestamp(now)
+  const params = new URLSearchParams()
+  if (typeof valid === 'string' && valid) params.set('valid', valid)
   try {
-    const response = await fetch('/api/severeDesk/iemAttributes', {
+    const response = await fetch(`/api/severeDesk/iemAttributes${params.size ? `?${params}` : ''}`, {
       signal,
       headers: { Accept: 'application/geo+json' },
     })
     if (!response.ok) return normaliseIemAttributesFailure()
-    return normaliseIemAttributes(await response.json(), { receivedAt: polledAt, polledAt, now })
+    return normaliseIemAttributes(await response.json(), { receivedAt: polledAt, polledAt, now, requestedAt: valid })
   } catch {
     return normaliseIemAttributesFailure()
   }

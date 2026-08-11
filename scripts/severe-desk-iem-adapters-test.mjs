@@ -8,8 +8,8 @@
  */
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import iemLsrHandler from '../netlify/functions/severeDesk/iemLsr.mjs'
-import iemAttributesHandler from '../netlify/functions/severeDesk/iemAttributes.mjs'
+import iemLsrHandler from '../netlify/functions/severe-desk-iem-lsr.mjs'
+import iemAttributesHandler from '../netlify/functions/severe-desk-iem-attributes.mjs'
 import { normaliseIemLsr, normaliseIemLsrFailure } from '../src/lib/severeDesk/adapters/iemLsr.js'
 import { normaliseIemAttributes, normaliseIemAttributesFailure } from '../src/lib/severeDesk/adapters/iemAttributes.js'
 import { fetchIemLsrLayer } from '../src/lib/severeDesk/clients/iemLsrClient.js'
@@ -119,6 +119,20 @@ try {
   assert.equal(attributesRequest.options.headers.Accept, 'application/geo+json')
   assert.equal(attributesResponse.headers.get('Netlify-CDN-Cache-Control'), 'public, s-maxage=120, stale-while-revalidate=240')
 
+  let attributeAttempts = 0
+  globalThis.fetch = async () => {
+    attributeAttempts += 1
+    if (attributeAttempts === 1) {
+      const timeout = new Error('cold IEM response timed out')
+      timeout.name = 'TimeoutError'
+      throw timeout
+    }
+    return new Response(JSON.stringify(attrsEmpty), { status: 200 })
+  }
+  const recoveredAttributes = await iemAttributesHandler(new Request('https://stormlogic.example/.netlify/functions/severeDesk/iemAttributes'))
+  assert.equal(recoveredAttributes.status, 200, 'one transient IEM timeout must receive one bounded proxy retry')
+  assert.equal(attributeAttempts, 2, 'the proxy must retry the cold upstream once, not return a flaky one-shot failure')
+
   let called = false
   globalThis.fetch = async () => { called = true; throw new Error('must not fetch') }
   const spatialClaim = await iemAttributesHandler(new Request('https://stormlogic.example/.netlify/functions/severeDesk/iemAttributes?region=KS'))
@@ -145,8 +159,8 @@ try {
   globalThis.fetch = async () => new Response(JSON.stringify({ error: 'unavailable' }), { status: 502 })
   assert.deepEqual(
     [
-      (await fetchIemAttributesLayer(undefined, { now: freshNow })).status,
-      (await fetchIemAttributesLayer(undefined, { now: freshNow })).reason,
+      (await fetchIemAttributesLayer({ now: freshNow })).status,
+      (await fetchIemAttributesLayer({ now: freshNow })).reason,
     ],
     ['unavailable', 'upstream-error'],
     'a failed proxy cannot become an empty attributes collection',

@@ -1,4 +1,10 @@
 const ATTRIBUTE_CADENCE_MS = 300_000
+// `valid=` selects one latest scan per independently clocked NEXRAD site.
+// At the live edge all returned scans can legitimately precede the selected
+// instant, so bracketing it is not a validity requirement. Twenty minutes is
+// the recorded maximum live-edge spread; it still rejects IEM's 85+ minute
+// silent-unknown-parameter fail-open response.
+const VALID_PROXIMITY_MS = 20 * 60_000
 
 const SOURCE = Object.freeze({
   name: 'Iowa Environmental Mesonet',
@@ -11,6 +17,10 @@ const SOURCE = Object.freeze({
 function parseTime(value) {
   const timestamp = typeof value === 'string' ? Date.parse(value) : Number.NaN
   return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function isoAt(ms) {
+  return new Date(ms).toISOString().replace('.000Z', 'Z')
 }
 
 function coordinatePair(geometry) {
@@ -80,7 +90,7 @@ function normaliseAttribute(feature) {
 }
 
 /** Convert IEM's scan-scoped GeoJSON into a signature LayerState. */
-export function normaliseIemAttributes(payload, { receivedAt, polledAt, now = Date.now() } = {}) {
+export function normaliseIemAttributes(payload, { receivedAt, polledAt, now = Date.now(), requestedAt = null } = {}) {
   const receivedMs = parseTime(receivedAt)
   const polledMs = parseTime(polledAt)
   const nowMs = typeof now === 'number' ? now : parseTime(now)
@@ -88,19 +98,32 @@ export function normaliseIemAttributes(payload, { receivedAt, polledAt, now = Da
     return unavailable(polledAt ?? null)
   }
 
+  const requestedMs = requestedAt === null ? null : parseTime(requestedAt)
+  if (requestedAt !== null && requestedMs === null) return unavailable(polledAt)
+
   const features = payload.features.map(normaliseAttribute)
   if (features.some((feature) => feature === null)) return unavailable(polledAt)
 
   const freshness = freshnessFor(polledMs, nowMs)
   if (!freshness) return unavailable(polledAt, 'stale-expired')
 
-  const generatedAt = parseTime(payload.generated_at) === null ? polledAt : payload.generated_at
+  const scans = features.map((feature) => parseTime(feature.scanAt))
+  const newestScan = scans.length ? Math.max(...scans) : null
+  // IEM silently ignores unknown parameters. A well-formed current response
+  // must not be presented as historical merely because it returned HTTP 200.
+  if (requestedMs !== null && scans.length && scans.some((scan) => Math.abs(scan - requestedMs) > VALID_PROXIMITY_MS)) {
+    return unavailable(polledAt)
+  }
+
   return {
     status: 'ready',
     layerId: 'storm-attributes',
     source: SOURCE,
     clock: {
-      observedAt: generatedAt,
+      // generated_at is response-generation time. The only observation clock
+      // is each feature's scanAt; use the newest actual scan only as the
+      // collection summary required by LayerState.
+      observedAt: newestScan === null ? (requestedAt ?? receivedAt) : isoAt(newestScan),
       receivedAt,
       polledAt,
       validFrom: null,

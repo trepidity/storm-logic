@@ -10,7 +10,7 @@ import { chromium } from 'playwright'
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize } from 'node:path'
-import { normaliseFrames, tileUrlTemplate, TILE_SIZE } from '../src/lib/radar.js'
+import { normaliseFrames, tileUrlTemplate, reconcileFrameSelection, TILE_SIZE } from '../src/lib/radar.js'
 
 const results = []
 function check(name, actual, expected) {
@@ -168,6 +168,47 @@ check(
 )
 check('tile size constant is 256', TILE_SIZE, 256)
 
+// The RainViewer index is a moving window: a refresh publishes a newer frame
+// and drops the oldest, so the same array position means a different moment
+// afterwards. Selecting by index across a refresh silently teleports the
+// viewer; these pin selection to frame identity instead.
+const WINDOW_BEFORE = normaliseFrames(INDEX).frames
+const SHIFTED = normaliseFrames({
+  host: INDEX.host,
+  radar: {
+    // Oldest past frame aged out; one newer observation published.
+    past: [...INDEX.radar.past.slice(1), { time: 1786417500, path: '/v2/radar/1786417500' }],
+    nowcast: INDEX.radar.nowcast,
+  },
+}).frames
+
+check(
+  'a first load lands on the latest observation',
+  reconcileFrameSelection({ previous: [], previousPath: null, next: WINDOW_BEFORE }),
+  2,
+)
+check(
+  'a viewer on the live edge follows it to the newly published frame',
+  SHIFTED[reconcileFrameSelection({ previous: WINDOW_BEFORE, previousPath: '/v2/radar/1786409700', next: SHIFTED })].path,
+  '/v2/radar/1786417500',
+)
+check(
+  'a deliberately scrubbed frame survives the window shift by identity',
+  SHIFTED[reconcileFrameSelection({ previous: WINDOW_BEFORE, previousPath: '/v2/radar/1786401900', next: SHIFTED })].path,
+  '/v2/radar/1786401900',
+)
+check(
+  'a scrubbed frame that aged out of the window falls forward to the live edge',
+  SHIFTED[reconcileFrameSelection({ previous: WINDOW_BEFORE, previousPath: '/v2/radar/1786394700', next: SHIFTED })].path,
+  '/v2/radar/1786417500',
+)
+check(
+  'a forecast frame is never treated as the live edge',
+  WINDOW_BEFORE[reconcileFrameSelection({ previous: [], previousPath: null, next: WINDOW_BEFORE })].future,
+  false,
+)
+check('an empty refresh cannot produce an out-of-range selection', reconcileFrameSelection({ next: [] }), 0)
+
 // ---- browser ---------------------------------------------------------------
 
 const ROOT = new URL('../dist/', import.meta.url).pathname
@@ -244,10 +285,22 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1180, height: 1000 } })
 const consoleErrors = []
 page.on('pageerror', (e) => consoleErrors.push(e.stack || e.message))
-page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
+page.on('console', (m) => {
+  // This L0 deliberately injects one attributes 503 to prove the user-visible
+  // failure and retry path. Browsers report that expected failed resource as a
+  // console error; every other page/console error remains release-blocking.
+  if (m.type() === 'error' && !m.text().includes('503 (Service Unavailable)')) consoleErrors.push(m.text())
+})
 
 let radarRequests = 0
 const officialRequests = []
+const trackingRequests = []
+const RETRY_FRAME_VALID = new Date(INDEX.radar.past[1].time * 1000).toISOString()
+let retryAttributeAttempts = 0
+let releaseAttributeRetry
+const attributeRetryGate = new Promise((resolve) => {
+  releaseAttributeRetry = resolve
+})
 await page.route('**/api/forecast*', (r) =>
   r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FORECAST) }))
 await page.route('https://geocoding-api.open-meteo.com/v1/search*', (r) =>
@@ -261,10 +314,41 @@ await page.route('https://geocoding-api.open-meteo.com/v1/search*', (r) =>
   }))
 await page.route('**/api/alerts*', (r) =>
   r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALERTS) }))
-await page.route('**/api/severeDesk/iemLsr*', (r) =>
-  r.fulfill({ status: 200, contentType: 'application/geo+json', body: JSON.stringify(IEM_LSR) }))
-await page.route('**/api/severeDesk/iemAttributes', (r) =>
-  r.fulfill({ status: 200, contentType: 'application/geo+json', body: JSON.stringify(IEM_ATTRIBUTES) }))
+await page.route('**/api/severeDesk/iemLsr*', (r) => {
+  trackingRequests.push(r.request().url())
+  return r.fulfill({ status: 200, contentType: 'application/geo+json', body: JSON.stringify(IEM_LSR) })
+})
+await page.route('**/api/severeDesk/iemAttributes*', (r) => {
+  const requestUrl = new URL(r.request().url())
+  const valid = requestUrl.searchParams.get('valid')
+  trackingRequests.push(r.request().url())
+  // A fresh, previously unselected frame receives one transient IEM failure.
+  // The second request remains held until the rendered failure is observed;
+  // this proves both that the current frame does not retain a prior healthy
+  // state and that only a completed snapshot, never an unavailable one, is
+  // eligible for the immutable per-frame cache.
+  if (valid === RETRY_FRAME_VALID) {
+    retryAttributeAttempts += 1
+    if (retryAttributeAttempts === 1) {
+      return r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'temporary IEM failure' }) })
+    }
+    if (retryAttributeAttempts === 2) {
+      return attributeRetryGate.then(() => r.fulfill({ status: 200, contentType: 'application/geo+json', body: JSON.stringify({
+        ...structuredClone(IEM_ATTRIBUTES),
+        features: structuredClone(IEM_ATTRIBUTES.features).map((feature) => ({
+          ...feature,
+          properties: { ...feature.properties, valid },
+        })),
+      }) }))
+    }
+  }
+  // IEM's corrected v1.4 contract returns a per-site snapshot selected around
+  // valid=. This browser fixture mirrors that provider behaviour rather than
+  // forcing every timeline request to reuse one current scan.
+  const payload = structuredClone(IEM_ATTRIBUTES)
+  payload.features[0].properties.valid = valid
+  return r.fulfill({ status: 200, contentType: 'application/geo+json', body: JSON.stringify(payload) })
+})
 await page.route('**/api/nws-warnings*', (r) => {
   officialRequests.push(r.request().url())
   return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(DESK_WARNINGS) })
@@ -342,6 +426,61 @@ check(
   (await page.locator('.radar__layer[data-layer-id="warnings"] .radar__layer-time').textContent()).startsWith('Source update · '),
   true,
 )
+const outlookPill = page.locator('.radar__layer[data-layer-id="spc-outlooks"] .radar__layer-toggle')
+const outlookTooltip = page.locator('#radar-layer-tooltip-spc-outlooks')
+check('severe desk controls are compact pills with an associated detail tooltip', [
+  await outlookPill.evaluate((node) => node.classList.contains('radar__layer-toggle--pill')),
+  await outlookPill.getAttribute('aria-describedby'),
+  await outlookTooltip.count(),
+], [true, 'radar-layer-tooltip-spc-outlooks', 1])
+if (await outlookTooltip.count()) {
+  await outlookPill.hover()
+  await page.waitForTimeout(180)
+  check(
+    'hovering a layer pill reveals the source, health, and frame detail',
+    await outlookTooltip.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return style.visibility !== 'hidden' && style.opacity === '1'
+    }),
+    true,
+  )
+}
+// Touch has no hover, and the toggle used to be the pill's only focusable
+// element — so the one gesture that revealed provenance also switched the
+// layer off. The info control must reveal the same detail while leaving the
+// map untouched, and it must stay pinned with the pointer moved away, or it is
+// just the hover behaviour again.
+const outlookInfo = page.locator('.radar__layer[data-layer-id="spc-outlooks"] .radar__layer-info')
+const outlookPressedBefore = await outlookPill.getAttribute('aria-pressed')
+await outlookInfo.click()
+await page.mouse.move(4, 4)
+await page.waitForTimeout(180)
+check('the info control reveals detail without toggling the layer it describes', [
+  await outlookPill.getAttribute('aria-pressed'),
+  await outlookInfo.getAttribute('aria-expanded'),
+  await outlookTooltip.evaluate((node) => getComputedStyle(node).visibility !== 'hidden'),
+], [outlookPressedBefore, 'true', true])
+// Blur as well as move the pointer away. Focus alone already reveals the panel
+// via :focus-within, so without dropping focus this assertion would pass on a
+// build that has no pinning at all — proving nothing about the touch path,
+// where focus is the least reliable thing to depend on.
+await page.evaluate(() => document.activeElement?.blur())
+await page.waitForTimeout(180)
+check(
+  'the pinned detail survives both the pointer and focus leaving the pill',
+  [
+    await outlookInfo.getAttribute('aria-expanded'),
+    await outlookTooltip.evaluate((node) => getComputedStyle(node).opacity === '1'),
+  ],
+  ['true', true],
+)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(180)
+check('Escape dismisses a pinned detail panel', [
+  await outlookInfo.getAttribute('aria-expanded'),
+  await outlookPill.getAttribute('aria-pressed'),
+], ['false', outlookPressedBefore])
+
 const mapBox = await page.locator('.radar__map').boundingBox()
 if (mapBox) {
   await page.mouse.move(mapBox.x + mapBox.width / 2, mapBox.y + mapBox.height / 2)
@@ -357,6 +496,10 @@ check(
   await page.locator('.radar__layer[data-layer-id="spc-outlooks"] .radar__layer-toggle').getAttribute('aria-pressed'),
   'false',
 )
+check('a hidden layer is visually distinct without changing source health', [
+  await page.locator('.radar__layer[data-layer-id="spc-outlooks"]').evaluate((node) => node.classList.contains('radar__layer--hidden')),
+  await page.locator('.radar__layer[data-layer-id="spc-outlooks"] .radar__layer-health').textContent(),
+], [true, 'Source healthy'])
 
 // The L0 tracking seam is deliberately driven by the rendered Radar timeline,
 // not direct adapter calls. The latest observed frame can show both a report
@@ -381,18 +524,65 @@ check('latest observed frame renders both independently timed marker classes', [
   await page.locator('.radar__tracking-marker--report').count(),
   await page.locator('.radar__tracking-marker--signature').count(),
 ], [1, 1])
+check(
+  'source health is displayed independently from whether a layer is visible',
+  await page.locator('.radar__layer[data-layer-id="storm-attributes"] .radar__layer-health').textContent(),
+  'Source healthy',
+)
+check(
+  'tracking cards disclose timeline coupling instead of calling it source availability',
+  (await page.locator('.radar__layer[data-layer-id="storm-attributes"] .radar__layer-frame').textContent()).startsWith('Selected frame · 2026-08-11T00:55:00.000Z'),
+  true,
+)
+check('the map legend uses one matching entry per severe-desk layer', await page.locator('.radar__map-legend span').count(), 4)
+
+check(
+  'the selected observed frame requests IEM attributes by its exact valid instant',
+  trackingRequests.some((url) => url.includes(`/api/severeDesk/iemAttributes?valid=${encodeURIComponent('2026-08-11T00:55:00.000Z')}`)),
+  true,
+)
 
 await page.locator('.radar__tick').nth(0).click()
-await page.waitForSelector('.radar__layer[data-layer-id="storm-attributes"] .radar__layer-status')
-check('an older report stays visible without borrowing a future attribute scan', [
+await page.waitForSelector('.radar__tracking-marker--signature')
+check('an older report receives its own valid-addressed attribute snapshot', [
   await page.locator('.radar__tracking-marker--report').count(),
   await page.locator('.radar__tracking-marker--signature').count(),
-], [1, 0])
+], [1, 1])
 check(
-  'out-of-window attributes render an explicit absence rather than a fabricated cell track',
-  await page.locator('.radar__layer[data-layer-id="storm-attributes"] .radar__layer-status').textContent(),
-  'Storm attributes unavailable.',
+  'an older observed frame sends its own exact valid query rather than borrowing a later scan',
+  trackingRequests.some((url) => url.includes(`/api/severeDesk/iemAttributes?valid=${encodeURIComponent('2026-08-10T20:45:00.000Z')}`)),
+  true,
 )
+
+await page.locator('.radar__tick').nth(1).click()
+await page.waitForSelector('.radar__layer[data-layer-id="storm-attributes"].radar__layer--unavailable')
+check(
+  'a failed fresh-frame attributes request renders source-unavailable rather than retaining the prior healthy frame',
+  [
+    await page.locator('.radar__layer[data-layer-id="storm-attributes"] .radar__layer-health').textContent(),
+    await page.locator('.radar__tracking-marker--signature').count(),
+  ],
+  ['Source unavailable', 0],
+)
+await page.waitForTimeout(100)
+check('an unavailable attribute response is retried instead of entering the immutable frame cache', retryAttributeAttempts, 2)
+releaseAttributeRetry()
+await page.waitForFunction(
+  () => document.querySelector('.radar__layer[data-layer-id="storm-attributes"] .radar__layer-health')?.textContent === 'Source healthy',
+  { timeout: 10_000 },
+)
+await page.waitForSelector('.radar__tracking-marker--signature')
+check('a recovered attributes request restores only the selected frame source', [
+  retryAttributeAttempts,
+  await page.locator('.radar__layer[data-layer-id="storm-attributes"] .radar__layer-health').textContent(),
+  await page.locator('.radar__tracking-marker--signature').count(),
+], [2, 'Source healthy', 1])
+
+const trackingRequestsBeforePlay = trackingRequests.length
+await page.locator('.radar__play').click()
+await page.waitForTimeout(1_200)
+check('playing reflectivity never emits 2 Hz tracking-provider requests', trackingRequests.length, trackingRequestsBeforePlay)
+await page.locator('.radar__play').click()
 
 await page.locator('.radar__tick').nth(2).click()
 await page.waitForTimeout(100)
@@ -526,7 +716,7 @@ check('an unsupported place fails closed without official-provider requests', of
 check(
   'an unsupported place exposes typed unavailable official layers',
   await page.locator('.radar__layer-status').allTextContents(),
-  ['SPC outlooks unavailable.', 'Official alerts unavailable.', 'Storm attributes unavailable.'],
+  ['SPC outlooks unavailable.', 'Official alerts unavailable.'],
 )
 
 await browser.close()
