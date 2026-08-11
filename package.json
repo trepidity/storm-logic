@@ -6,9 +6,10 @@
   "description": "Weather concept app powered by the Open-Meteo API",
   "scripts": {
     "dev": "vite",
+    "dev:netlify": "npm exec --yes --package=netlify-cli@23.12.0 netlify -- dev",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "npm run test:summary && npm run test:contract && npm run test:reverse && npm run test:precip && npm run test:precip-event && npm run test:timing && npm run test:explain && npm run test:outdoor-plan && npm run test:alerts && npm run test:aqi && npm run test:air && npm run test:confidence && npm run test:confidence-data && npm run build && npm run test:smoke && npm run test:contrast && npm run test:persistence && npm run test:radar",
+    "test": "npm run test:summary && npm run test:contract && npm run test:reverse && npm run test:precip && npm run test:precip-event && npm run test:timing && npm run test:explain && npm run test:outdoor-plan && npm run test:alerts && npm run test:aqi && npm run test:air && npm run test:confidence && npm run test:confidence-data && npm run test:severe-desk-layer && npm run test:severe-desk-fixtures && npm run test:severe-desk-fixture-assertions && npm run test:severe-desk-iem && npm run test:severe-desk-attributes-correction && npm run test:severe-desk-nws-warnings && npm run test:severe-desk-spc && npm run build && npm run test:smoke && npm run test:contrast && npm run test:persistence && npm run test:radar",
     "test:summary": "node scripts/summary-test.mjs",
     "test:contract": "node scripts/forecast-contract-test.mjs",
     "test:reverse": "node scripts/reverse-geocode-test.mjs",
@@ -25,7 +26,16 @@
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:contrast": "node scripts/contrast-check.mjs",
     "test:persistence": "node scripts/persistence-test.mjs",
-    "test:radar": "node scripts/radar-test.mjs"
+    "test:radar": "node scripts/radar-test.mjs",
+    "test:severe-desk-layer": "node scripts/severe-desk-layer-state-test.mjs",
+    "test:severe-desk-iem": "node scripts/severe-desk-iem-adapters-test.mjs",
+    "test:severe-desk-attributes-correction": "node scripts/severe-desk-attributes-correction-test.mjs",
+    "test:severe-desk-nws-warnings": "node scripts/severe-desk-nws-warnings-test.mjs",
+    "test:severe-desk-spc": "node scripts/severe-desk-spc-test.mjs",
+    "test:severe-desk-fixtures": "node scripts/severe-desk-fixture-check.mjs",
+    "test:severe-desk-fixture-assertions": "node scripts/severe-desk-fixture-assertion-test.mjs",
+    "test:severe-desk-runtime": "node scripts/severe-desk-runtime-test.mjs",
+    "test:severe-desk-runtime-browser": "node scripts/severe-desk-runtime-browser-test.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

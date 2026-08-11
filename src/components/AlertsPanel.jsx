@@ -83,7 +83,7 @@ export default function AlertsPanel({ place, onOpenRadar }) {
     <section className="alerts" aria-labelledby="alerts-title">
       <header className="alerts__head">
         <div>
-          <p className="alerts__eyebrow">National Weather Service</p>
+          <p className="alerts__eyebrow">National Weather Service · official watches, warnings, and advisories</p>
           <h1 id="alerts-title">Alerts for {place.name}</h1>
         </div>
         <a href="https://www.weather.gov/" target="_blank" rel="noreferrer noopener">

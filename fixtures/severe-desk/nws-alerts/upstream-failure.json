@@ -1,0 +1,5 @@
+{
+  "fixture": "constructed upstream failure input",
+  "expectedHttpStatus": 503,
+  "reason": "provider unavailable; no alert geometry may be rendered"
+}

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "states": [
+    {
+      "status": "ready",
+      "layerId": "reflectivity",
+      "source": {
+        "name": "Recorded composite radar",
+        "attribution": "No-network layer-state fixture",
+        "authority": "observation",
+        "product": "composite reflectivity",
+        "isFallback": false
+      },
+      "clock": {
+        "observedAt": "2026-08-10T18:00:00Z",
+        "receivedAt": "2026-08-10T18:00:02Z",
+        "polledAt": "2026-08-10T18:00:02Z",
+        "validFrom": "2026-08-10T18:00:00Z",
+        "validTo": null,
+        "cadenceMs": 600000
+      },
+      "freshness": "fresh",
+      "emptiness": "populated",
+      "features": [
+        { "id": "fixture-reflectivity-frame" }
+      ],
+      "truncated": null
+    },
+    {
+      "status": "ready",
+      "layerId": "storm-reports",
+      "source": {
+        "name": "Recorded storm reports",
+        "attribution": "No-network layer-state fixture",
+        "authority": "report",
+        "product": "local storm reports",
+        "isFallback": false
+      },
+      "clock": {
+        "observedAt": "2026-08-10T18:00:00Z",
+        "receivedAt": "2026-08-10T18:00:01Z",
+        "polledAt": "2026-08-10T18:00:01Z",
+        "validFrom": null,
+        "validTo": null,
+        "cadenceMs": 60000
+      },
+      "freshness": "fresh",
+      "emptiness": "no-data-in-window",
+      "features": [],
+      "truncated": null
+    },
+    {
+      "status": "unavailable",
+      "layerId": "warnings",
+      "source": {
+        "name": "Recorded official alerts",
+        "attribution": "No-network layer-state fixture",
+        "authority": "warning",
+        "product": "watches, warnings, and advisories",
+        "isFallback": false
+      },
+      "reason": "upstream-error",
+      "lastKnownAt": "2026-08-10T17:59:30Z"
+    }
+  ]
+}

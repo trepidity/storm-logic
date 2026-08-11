@@ -84,6 +84,23 @@ NWS directly. In a production build forecast, confidence, alerts, and air go
 through `/api/forecast`, `/api/confidence`, `/api/alerts`, and `/api/air` — see
 below.
 
+### Local deployment-runtime proof
+
+`npm run dev` is a fast Vite-only loop. It does not run Netlify Functions, so
+it cannot prove any `/api/*` path that is served by a function. Before deploying
+Severe Desk, use the deployment-shaped local runtime instead:
+
+```bash
+npm run dev:netlify                 # http://localhost:8888
+npm run test:severe-desk-runtime    # live local redirects + all four providers
+npm run test:severe-desk-runtime-browser  # rendered Radar, no intercepted routes
+```
+
+The runtime proof intentionally makes no fixture interceptions: it verifies the
+browser API paths traverse Netlify redirects, local functions, and live NWS,
+SPC, and IEM responses. A provider outage is a failed readiness gate, not a
+quiet pass.
+
 ## Deploying to Netlify
 
 ```bash

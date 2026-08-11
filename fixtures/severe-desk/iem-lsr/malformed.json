@@ -1,0 +1,5 @@
+{
+  "fixture": "constructed malformed IEM LSR payload",
+  "type": "FeatureCollection",
+  "features": [{ "type": "Feature", "properties": { "valid": null }, "geometry": null }]
+}

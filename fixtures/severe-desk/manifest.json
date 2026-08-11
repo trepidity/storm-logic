@@ -1,0 +1,671 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "sourceId": "nws-alerts",
+      "case": "nominal",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:34:50Z",
+      "request": "GET /alerts/active?area=KS,MO",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "nws-alerts/nominal.json",
+      "sha256": "1dc9c92c020a858d01fd0a707dc30d4e8642b9eaa9d9218e9a831a8cbc3fcc55",
+      "proves": [
+        "multi-state area request returns active alert GeoJSON"
+      ]
+    },
+    {
+      "sourceId": "nws-alerts",
+      "case": "empty",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /alerts/active?area=AK",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "nws-alerts/empty.json",
+      "sha256": "4e7c10615c04a338432e06f8cc44693381fff406402fe254fcc4f39cd8e115e0",
+      "proves": [
+        "successful empty alert feed is distinguishable from failure"
+      ]
+    },
+    {
+      "sourceId": "nws-alerts",
+      "case": "malformed",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /alerts/active?area=ZZ",
+      "status": 400,
+      "contentType": "application/json",
+      "artifact": "nws-alerts/malformed.json",
+      "sha256": "d7d87539b1dec64b6d8ab02ed9c3e13eb0628274e3373c88da8d40aef6edf9ae",
+      "proves": [
+        "invalid area input is not treated as an empty alert feed"
+      ]
+    },
+    {
+      "sourceId": "nws-alerts",
+      "case": "upstream-failure",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /alerts/active?area=KS,MO",
+      "status": 503,
+      "contentType": "application/json",
+      "artifact": "nws-alerts/upstream-failure.json",
+      "sha256": "daece7a40a6d311e8eef47b5d790e61e2f3106c028f20edb567e175d0d4d8e65",
+      "proves": [
+        "unavailable alert feed has no geometry"
+      ]
+    },
+    {
+      "sourceId": "nws-alerts",
+      "case": "multi-state-area",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:34:50Z",
+      "request": "GET /alerts/active?area=KS,MO",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "nws-alerts/nominal.json",
+      "sha256": "1dc9c92c020a858d01fd0a707dc30d4e8642b9eaa9d9218e9a831a8cbc3fcc55",
+      "proves": [
+        "comma-separated area accepts multiple state codes"
+      ]
+    },
+    {
+      "sourceId": "nws-alerts",
+      "case": "malformed-area-400",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /alerts/active?area=ZZ",
+      "status": 400,
+      "contentType": "application/json",
+      "artifact": "nws-alerts/malformed.json",
+      "sha256": "d7d87539b1dec64b6d8ab02ed9c3e13eb0628274e3373c88da8d40aef6edf9ae",
+      "proves": [
+        "NWS request-model validation rejects unsupported area values"
+      ]
+    },
+    {
+      "sourceId": "noaa-wwa",
+      "case": "nominal",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:57:58Z",
+      "request": "GET FeatureServer/0/query?where=1%3D1&outFields=*&resultRecordCount=1&f=geojson",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "noaa-wwa/geojson.json",
+      "sha256": "a035a9ac95010d08159aae16082e2ab6e2814e9d83808bce294ff4a191a288e4",
+      "proves": [
+        "fallback warning source returns a feature collection"
+      ]
+    },
+    {
+      "sourceId": "noaa-wwa",
+      "case": "empty",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET FeatureServer/0/query?where=1%3D0&outFields=*&f=geojson",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "noaa-wwa/empty.json",
+      "sha256": "6d18edfe75b3149104038dcbca4d0096bbcb923f0f9fa4b49f4815344e75bb90",
+      "proves": [
+        "successful empty fallback response is a feature collection"
+      ]
+    },
+    {
+      "sourceId": "noaa-wwa",
+      "case": "malformed",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET FeatureServer/0/query?where=*&f=geojson",
+      "status": 400,
+      "contentType": "application/json",
+      "artifact": "noaa-wwa/malformed.json",
+      "sha256": "940920d2122d5d4ef96b10c7c1a0140d1f6b5d4a767df121e2394d5b3444d220",
+      "proves": [
+        "invalid query is not treated as an empty response"
+      ]
+    },
+    {
+      "sourceId": "noaa-wwa",
+      "case": "upstream-failure",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET FeatureServer/0/query?where=1%3D1&f=geojson",
+      "status": 503,
+      "contentType": "application/json",
+      "artifact": "noaa-wwa/upstream-failure.json",
+      "sha256": "f097a013d3ee48998c2516064bc9e38038d5720d3349cc7c3e66a6104fa52824",
+      "proves": [
+        "fallback warning source failure renders unavailable"
+      ]
+    },
+    {
+      "sourceId": "noaa-wwa",
+      "case": "geojson",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:57:58Z",
+      "request": "GET FeatureServer/0/query?where=1%3D1&outFields=*&resultRecordCount=1&f=geojson",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "noaa-wwa/geojson.json",
+      "sha256": "a035a9ac95010d08159aae16082e2ab6e2814e9d83808bce294ff4a191a288e4",
+      "proves": [
+        "undocumented f=geojson response is retained as a regression capture"
+      ]
+    },
+    {
+      "sourceId": "noaa-wwa",
+      "case": "truncated",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET FeatureServer/0/query?where=1%3D1&outFields=*&resultRecordCount=1&returnGeometry=false&f=geojson",
+      "status": 200,
+      "contentType": "application/json",
+      "artifact": "noaa-wwa/truncated.json",
+      "sha256": "1de9492e9ee035e2c64feb90d4b197ec35d7a5cfdc5677f23a20fe2ed9b7b33c",
+      "proves": [
+        "exceededTransferLimit true requires a count follow-up"
+      ]
+    },
+    {
+      "sourceId": "noaa-wwa",
+      "case": "return-count-only",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET FeatureServer/0/query?where=1%3D1&returnCountOnly=true&f=json",
+      "status": 200,
+      "contentType": "application/json",
+      "artifact": "noaa-wwa/return-count-only.json",
+      "sha256": "d7e94bc838836803e0ba644ed0b2ae9ae2392fce58ba0edc9a377d21ed878461",
+      "proves": [
+        "returnCountOnly supplies an exact count after truncation"
+      ]
+    },
+    {
+      "sourceId": "noaa-spc",
+      "case": "nominal",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:58:40Z",
+      "request": "GET MapServer/5/query?where=1%3D1&outFields=*&resultRecordCount=1&f=geojson",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "noaa-spc/nominal.json",
+      "sha256": "00dc5aad856ff6187408fdc1a82c8b82da2060b6dea57ea80ba050726d3d324a",
+      "proves": [
+        "SPC hail probability layer returns GeoJSON geometry"
+      ]
+    },
+    {
+      "sourceId": "noaa-spc",
+      "case": "empty",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET MapServer/5/query?where=valid%3D%27202601010000%27&outFields=*&f=geojson",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "noaa-spc/empty.json",
+      "sha256": "6d18edfe75b3149104038dcbca4d0096bbcb923f0f9fa4b49f4815344e75bb90",
+      "proves": [
+        "out-of-window query returns a valid empty collection"
+      ]
+    },
+    {
+      "sourceId": "noaa-spc",
+      "case": "malformed",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET MapServer/5/query?where=*&f=geojson",
+      "status": 400,
+      "contentType": "application/json",
+      "artifact": "noaa-spc/malformed.json",
+      "sha256": "c15ff5ccd32ad726014ee00610294679e950198c02d5f3a14d6e2fad68c0f29d",
+      "proves": [
+        "invalid outlook query is not an empty collection"
+      ]
+    },
+    {
+      "sourceId": "noaa-spc",
+      "case": "upstream-failure",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET MapServer/5/query?where=1%3D1&f=geojson",
+      "status": 503,
+      "contentType": "application/json",
+      "artifact": "noaa-spc/upstream-failure.json",
+      "sha256": "bc949b35a901a0daf27d037929c6c5ce1106bfe3323a26b2a3d727b188883009",
+      "proves": [
+        "SPC outage renders unavailable"
+      ]
+    },
+    {
+      "sourceId": "noaa-spc",
+      "case": "active-probabilistic",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:58:40Z",
+      "request": "GET MapServer/5/query?where=1%3D1&outFields=*&resultRecordCount=1&f=geojson",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "noaa-spc/nominal.json",
+      "sha256": "00dc5aad856ff6187408fdc1a82c8b82da2060b6dea57ea80ba050726d3d324a",
+      "proves": [
+        "active Day 1 hail probability includes a probability label"
+      ]
+    },
+    {
+      "sourceId": "noaa-spc",
+      "case": "quiet-day",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET MapServer/5/query?where=valid%3D%27202601010000%27&outFields=*&f=geojson",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "noaa-spc/empty.json",
+      "sha256": "6d18edfe75b3149104038dcbca4d0096bbcb923f0f9fa4b49f4815344e75bb90",
+      "proves": [
+        "quiet/out-of-window selection is valid empty data, not an outage"
+      ]
+    },
+    {
+      "sourceId": "iem-spc",
+      "case": "nominal",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:58:40Z",
+      "request": "GET /json/spcoutlook.py?day=1",
+      "status": 200,
+      "contentType": "application/json",
+      "artifact": "iem-spc/nominal.json",
+      "sha256": "88beb1907531d1b1f2c22e73e8912911ff55bd8d889d2dc3c1a89cac38f7cb0e",
+      "proves": [
+        "IEM fallback returns outlook envelope"
+      ]
+    },
+    {
+      "sourceId": "iem-spc",
+      "case": "empty",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /json/spcoutlook.py?day=1",
+      "status": 200,
+      "contentType": "application/json",
+      "artifact": "iem-spc/empty.json",
+      "sha256": "15e384b9d3d95eaef4e87e9499f18b7a56ad219b0684291c9defa8b7b12615d5",
+      "proves": [
+        "empty data remains distinct from provider failure"
+      ]
+    },
+    {
+      "sourceId": "iem-spc",
+      "case": "malformed",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /json/spcoutlook.py?day=1",
+      "status": 400,
+      "contentType": "application/json",
+      "artifact": "iem-spc/malformed.json",
+      "sha256": "2322b3f2b38a74c09191d4244798bb844ad467830c06e638c1dc193cf5a883b8",
+      "proves": [
+        "malformed payload is not accepted as data"
+      ]
+    },
+    {
+      "sourceId": "iem-spc",
+      "case": "upstream-failure",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /json/spcoutlook.py?day=1",
+      "status": 503,
+      "contentType": "application/json",
+      "artifact": "iem-spc/upstream-failure.json",
+      "sha256": "8b8ae9ea957105931c6888584990e9555ab3279e461dfc3f08c56f5ee6749425",
+      "proves": [
+        "provider failure renders unavailable"
+      ]
+    },
+    {
+      "sourceId": "iem-lsr",
+      "case": "nominal",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:58:40Z",
+      "request": "GET /geojson/lsr.py?sts=2026-08-10T00:00Z&ets=2026-08-11T00:00Z",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "iem-lsr/nominal.json",
+      "sha256": "af3cfa977f9292963ecf162085e219bade53033345c6e6795a04e13a318f8fa8",
+      "proves": [
+        "LSR source returns report fields and point coordinates"
+      ]
+    },
+    {
+      "sourceId": "iem-lsr",
+      "case": "empty",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /geojson/lsr.py?sts=2026-08-10T00:00Z&ets=2026-08-11T00:00Z",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "iem-lsr/empty.json",
+      "sha256": "40731612d393519f9ce8894e0a22139bce972cb36b00166016106230d200d110",
+      "proves": [
+        "empty data remains distinct from provider failure"
+      ]
+    },
+    {
+      "sourceId": "iem-lsr",
+      "case": "malformed",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /geojson/lsr.py?sts=2026-08-10T00:00Z&ets=2026-08-11T00:00Z",
+      "status": 400,
+      "contentType": "application/geo+json",
+      "artifact": "iem-lsr/malformed.json",
+      "sha256": "460e521440e8ee75400ab34d8b95e0d6376989c534fa766749b7b8ef3ce99aa1",
+      "proves": [
+        "malformed payload is not accepted as data"
+      ]
+    },
+    {
+      "sourceId": "iem-lsr",
+      "case": "upstream-failure",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /geojson/lsr.py?sts=2026-08-10T00:00Z&ets=2026-08-11T00:00Z",
+      "status": 503,
+      "contentType": "application/json",
+      "artifact": "iem-lsr/upstream-failure.json",
+      "sha256": "73d2e4af24f0e0c0a7239a1a831ae47d2205918efb68bdacb71ca90fac6c85e5",
+      "proves": [
+        "provider failure renders unavailable"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "nominal",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:58:40Z",
+      "request": "GET /geojson/nexrad_attr.py",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "iem-attributes/nominal.json",
+      "sha256": "bd454d2b13696e302ed0abb9948d49affe9cbcbfc4292487ec0b1e27b8c584b4",
+      "proves": [
+        "storm-attribute source returns scan-scoped GeoJSON features"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "empty",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /geojson/nexrad_attr.py",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "iem-attributes/empty.json",
+      "sha256": "7df9e8db9a5109238f2ea60850c97ce4a0cc9c4df74a3c9a7f6289196498b433",
+      "proves": [
+        "empty data remains distinct from provider failure"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "malformed",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /geojson/nexrad_attr.py",
+      "status": 400,
+      "contentType": "application/geo+json",
+      "artifact": "iem-attributes/malformed.json",
+      "sha256": "169ef333718ecc523a8e1ea803e0b1cc0cb04400d9077a162f9dba45c572fe4c",
+      "proves": [
+        "malformed payload is not accepted as data"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "upstream-failure",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /geojson/nexrad_attr.py",
+      "status": 503,
+      "contentType": "application/json",
+      "artifact": "iem-attributes/upstream-failure.json",
+      "sha256": "6a3d2cdf4c43d3d40082b6cdc0c6ef33726ac0eb04080703eccf39dbdf4d2de3",
+      "proves": [
+        "provider failure renders unavailable"
+      ]
+    },
+    {
+      "sourceId": "rainviewer",
+      "case": "nominal",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:58:40Z",
+      "request": "GET /public/weather-maps.json",
+      "status": 200,
+      "contentType": "application/json",
+      "artifact": "rainviewer/nominal.json",
+      "sha256": "18827007cd2ba403abb3ec7b5de7d868f2d3263c9eb253bd4db924e79141845d",
+      "proves": [
+        "radar index carries past and nowcast frame metadata"
+      ]
+    },
+    {
+      "sourceId": "rainviewer",
+      "case": "empty",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /public/weather-maps.json",
+      "status": 200,
+      "contentType": "application/json",
+      "artifact": "rainviewer/empty.json",
+      "sha256": "67c3cdec489cc845e4ce3814c5b26c8c77ddf713d3a725eb304854c3da5d8301",
+      "proves": [
+        "empty data remains distinct from provider failure"
+      ]
+    },
+    {
+      "sourceId": "rainviewer",
+      "case": "malformed",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /public/weather-maps.json",
+      "status": 400,
+      "contentType": "application/json",
+      "artifact": "rainviewer/malformed.json",
+      "sha256": "b1f1ebf2b7eb83192102f43b57a3c042944ffd8d2590d52ff24e92a0a50b0e8f",
+      "proves": [
+        "malformed payload is not accepted as data"
+      ]
+    },
+    {
+      "sourceId": "rainviewer",
+      "case": "upstream-failure",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /public/weather-maps.json",
+      "status": 503,
+      "contentType": "application/json",
+      "artifact": "rainviewer/upstream-failure.json",
+      "sha256": "412a5dfea45e8ecb55aaceb08f0f5f1e230b7a6790e7d62dad9daf407a9820a0",
+      "proves": [
+        "provider failure renders unavailable"
+      ]
+    },
+    {
+      "sourceId": "iem-lsr",
+      "case": "severe-burst",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T00:58:40Z",
+      "request": "GET /geojson/lsr.py?sts=2026-08-10T00:00Z&ets=2026-08-11T00:00Z",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "iem-lsr/nominal.json",
+      "sha256": "af3cfa977f9292963ecf162085e219bade53033345c6e6795a04e13a318f8fa8",
+      "proves": [
+        "severe-event window contains a report burst"
+      ]
+    },
+    {
+      "sourceId": "iem-lsr",
+      "case": "calm-day",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET /geojson/lsr.py?sts=2020-01-01T00:00Z&ets=2020-01-01T01:00Z&wfos=TOP",
+      "status": 200,
+      "contentType": "application/geo+json",
+      "artifact": "iem-lsr/empty.json",
+      "sha256": "40731612d393519f9ce8894e0a22139bce972cb36b00166016106230d200d110",
+      "proves": [
+        "a real historical calm window is ready with no reports"
+      ]
+    },
+    {
+      "sourceId": "noaa-mrms",
+      "case": "nominal",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET ImageServer/WMSServer?service=WMS&request=GetCapabilities",
+      "status": 200,
+      "contentType": "application/xml",
+      "artifact": "noaa-mrms/get-capabilities.xml",
+      "sha256": "d81db66c12436b3add09dc807ef8a2c459b9afe1e1ccf8bab5d4a92b3eeb4efe",
+      "proves": [
+        "base-reflectivity WMS metadata is available"
+      ]
+    },
+    {
+      "sourceId": "noaa-mrms",
+      "case": "empty",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET ImageServer/WMSServer?service=WMS&request=GetMap",
+      "status": 200,
+      "contentType": "application/xml",
+      "artifact": "noaa-mrms/empty.xml",
+      "sha256": "4947f15a839c3c59e8578d5d48ed90b8a87ff1aa7b1ec802c9665f00467c8202",
+      "proves": [
+        "no imagery result is distinct from service failure"
+      ]
+    },
+    {
+      "sourceId": "noaa-mrms",
+      "case": "malformed",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET ImageServer/WMSServer?service=WMS&request=GetCapabilities",
+      "status": 200,
+      "contentType": "application/xml",
+      "artifact": "noaa-mrms/malformed.xml",
+      "sha256": "84b6959363d0a7d3ca8a8329bd5e0423d85b8fc6212b23cc60b59fd0d6f78727",
+      "proves": [
+        "incomplete WMS capabilities cannot establish a usable layer"
+      ]
+    },
+    {
+      "sourceId": "noaa-mrms",
+      "case": "upstream-failure",
+      "captureKind": "constructed",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET ImageServer/WMSServer?service=WMS&request=GetCapabilities",
+      "status": 503,
+      "contentType": "application/json",
+      "artifact": "noaa-mrms/upstream-failure.json",
+      "sha256": "b604abf9b61343a2bce69acd5c4a3cc6ab56baeace6e13819b09e3d0dad1e95a",
+      "proves": [
+        "MRMS failure renders unavailable"
+      ]
+    },
+    {
+      "sourceId": "noaa-mrms",
+      "case": "get-capabilities",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T01:09:00Z",
+      "request": "GET ImageServer/WMSServer?service=WMS&request=GetCapabilities",
+      "status": 200,
+      "contentType": "application/xml",
+      "artifact": "noaa-mrms/get-capabilities.xml",
+      "sha256": "d81db66c12436b3add09dc807ef8a2c459b9afe1e1ccf8bab5d4a92b3eeb4efe",
+      "proves": [
+        "WMS capture pins time dimension and base-reflectivity product name"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "valid-historical",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T15:21:12Z",
+      "request": "GET /geojson/nexrad_attr.py?valid=2026-08-11T13:40:00Z",
+      "status": 200,
+      "contentType": "application/vnd.geo+json; charset=utf-8",
+      "artifact": "iem-attributes/valid-historical.json",
+      "sha256": "1173314071f7ffd128120854323993447a7db135e759674977fafe9052714df4",
+      "proves": [
+        "valid= addresses a historical scan snapshot; the v1.3 parameterless contract is false",
+        "returned scan times are within the accepted valid= proximity bound",
+        "upstream selects one scan per NEXRAD site"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "valid-future-empty",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T15:21:12Z",
+      "request": "GET /geojson/nexrad_attr.py?valid=2030-01-01T00:00:00Z",
+      "status": 200,
+      "contentType": "application/vnd.geo+json; charset=utf-8",
+      "artifact": "iem-attributes/valid-future-empty.json",
+      "sha256": "50412e4d3d4302d7a2b23d9dad8c4b986a0f402da9683a451e0dad9c1492630d",
+      "proves": [
+        "an in-range future valid= is HTTP 200 with an empty FeatureCollection",
+        "future selection is emptiness no-data-in-window, never unavailable"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "valid-live-edge-one-sided",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T19:01:09Z",
+      "request": "GET /geojson/nexrad_attr.py?valid=2026-08-11T19:00:00Z",
+      "status": 200,
+      "contentType": "application/vnd.geo+json; charset=utf-8",
+      "artifact": "iem-attributes/valid-live-edge-one-sided.json",
+      "sha256": "9d74b501ccecfed1e4151935c9678bffdbed2fe5e6017fd45b472f8d82f24068",
+      "proves": [
+        "a live-edge valid= response can contain only scans before the requested instant",
+        "all 1,346 captured scans are within the 20-minute accepted proximity bound",
+        "one-sided upstream selection is healthy data, not an upstream error"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "valid-malformed-422",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T15:21:12Z",
+      "request": "GET /geojson/nexrad_attr.py?valid=not-a-time",
+      "status": 422,
+      "contentType": "text/plain; charset=UTF-8",
+      "artifact": "iem-attributes/valid-malformed-422.txt",
+      "sha256": "647efb3dcd157111ef2e2aae79ee7ff72c2f3c6dab8309f8581ebfd7065edffd",
+      "proves": [
+        "a malformed valid= is rejected with HTTP 422",
+        "the 422 body is a Python repr, not JSON; JSON.parse throws on it"
+      ]
+    },
+    {
+      "sourceId": "iem-attributes",
+      "case": "ignored-parameter",
+      "captureKind": "live",
+      "capturedAtUtc": "2026-08-11T15:21:12Z",
+      "request": "GET /geojson/nexrad_attr.py?valid_time=2026-08-11T13:40:00Z",
+      "status": 200,
+      "contentType": "application/vnd.geo+json; charset=utf-8",
+      "artifact": "iem-attributes/ignored-parameter.json",
+      "sha256": "a9dbf5082b0340494b29e046e39bb8c6cd4e7958553844d2e715acc7612080a8",
+      "proves": [
+        "unrecognised parameters are silently ignored rather than rejected",
+        "returned scan times are outside the accepted valid= proximity bound; the live snapshot is served instead",
+        "only valid= addresses time; a misspelled parameter fails open (R-10)"
+      ]
+    }
+  ]
+}

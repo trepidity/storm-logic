@@ -1,7 +1,7 @@
 ---
 title: "API inventory and product brainstorm"
 date: 2026-08-10
-version: 1.6
+version: 1.9
 status: Draft
 owner: Jared
 category: research
@@ -19,7 +19,7 @@ tags:
 # API inventory and product brainstorm
 
 - **Date**: 2026-08-10
-- **Version**: 1.4
+- **Version**: 1.9
 - **Status**: Draft
 - **Owner**: Jared
 
@@ -351,10 +351,15 @@ about unavailable data without creating a second navigation job.
 - Commute helper, vs-normal historical, NWS AFD, drag-reorder places, and
   richer icons — see §6–§8. The first outdoor-event helper is complete; later
   helper flows still need their own explicit product decisions.
-- **Severe desk (storm / tornado / hail tracking)** — research inventory and
-  free-vs-paid API map live in
-  [`docs/severe-desk-radar-hail-tornado.md`](./severe-desk-radar-hail-tornado.md).
-  Not ordered for implementation until product approval.
+- **Severe desk (storm / tornado / hail tracking)** — research inventory in
+  [`docs/severe-desk-radar-hail-tornado.md`](./severe-desk-radar-hail-tornado.md);
+  waved roadmap in
+  [`docs/severe-desk-waved-roadmap.md`](./severe-desk-waved-roadmap.md).
+  **Wave 0 provider sources ratified 2026-08-10**
+  ([`docs/severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md)
+  v1.7 — sources accepted; Waves 0–D locally verified with 47 contract fixtures
+  and mutation proof). E–G remain blocked on MESH/interrogation/lightning
+  foundations; trusted live-event validation is still a user-operated release gate.
 
 ---
 
@@ -369,3 +374,6 @@ about unavailable data without creating a second navigation job.
 | 1.4 | 2026-08-10 | US AQI moved from a dedicated tab into the current-card stat row |
 | 1.5 | 2026-08-10 | Recorded the implemented outdoor-plan decision helper and its evidence boundary |
 | 1.6 | 2026-08-10 | Linked deferred severe-desk research (storm/tornado/hail + free vs paid APIs) |
+| 1.7 | 2026-08-10 | Severe-desk Wave 0 provider contracts ratified (binding sources/time/load) |
+| 1.8 | 2026-08-10 | Severe-desk Wave 0 restated: sources accepted, contract fixtures pending and gating Waves C–D |
+| 1.9 | 2026-08-11 | Severe-desk Waves 0–D locally verified; IEM `valid=` correction, 46 fixtures, mutation proof, and live-event validation boundary recorded |

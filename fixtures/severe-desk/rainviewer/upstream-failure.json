@@ -1,0 +1,5 @@
+{
+  "fixture": "constructed upstream failure input",
+  "expectedHttpStatus": 503,
+  "reason": "RainViewer radar index unavailable"
+}

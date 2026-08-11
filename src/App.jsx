@@ -23,6 +23,10 @@ import LocationSearch from './components/LocationSearch.jsx'
 import SavedPlaces from './components/SavedPlaces.jsx'
 import CurrentCard from './components/CurrentCard.jsx'
 import Forecast from './components/Forecast.jsx'
+import { fetchNwsWarnings, unavailableNwsWarnings } from './lib/severeDesk/adapters/nwsWarnings.js'
+import { unavailableSpcOutlook } from './lib/severeDesk/adapters/spcOutlook.js'
+import { fetchSpcOutlook } from './lib/severeDesk/clients/spcOutlookClient.js'
+import { OFFICIAL_DESK_SETTLE_MS, resolveOfficialDeskRegion } from './lib/severeDesk/officialDeskRegion.js'
 
 // Radar pulls in Leaflet (~42KB gzipped) plus its CSS, and radar tiles are
 // heavy on mobile data. Lazy so none of that is paid for unless the tab is
@@ -40,6 +44,7 @@ const DEFAULT_PLACE = normalisePlace({
 })
 
 const REFRESH_MS = 10 * 60 * 1000
+const OFFICIAL_DESK_REFRESH_MS = 30 * 1000
 
 export default function App() {
   // Lazy initialisers so storage is read once, not on every render.
@@ -57,10 +62,21 @@ export default function App() {
   // Radar navigation clears it, so stale alert areas never follow a user to a
   // different place or a later, unrelated map visit.
   const [radarAlert, setRadarAlert] = useState(null)
+  const [officialLayerStates, setOfficialLayerStates] = useState(null)
+  const [officialLayerRegionKey, setOfficialLayerRegionKey] = useState(null)
 
   const units = UNIT_PRESETS[unitId]
   const abortRef = useRef(null)
   const activeKey = place ? place.key : null
+  const officialDeskRegion = useMemo(() => resolveOfficialDeskRegion(place), [place])
+  const officialDeskRegionKey = useMemo(() => {
+    if (!officialDeskRegion) return null
+    const { areaCodes, bbox } = officialDeskRegion
+    return `${areaCodes.join(',')}|${bbox.west},${bbox.south},${bbox.east},${bbox.north}`
+  }, [officialDeskRegion])
+  // A keyed Radar remount must not paint a previous state's geometry while the
+  // selected-place settle/fetch cycle has not produced its own LayerState.
+  const applicableOfficialLayerStates = officialLayerRegionKey === officialDeskRegionKey ? officialLayerStates : null
 
   // --- first visit -------------------------------------------------------
   // Paint the default city immediately, then upgrade to the real position if
@@ -135,6 +151,54 @@ export default function App() {
     load()
     return () => abortRef.current?.abort()
   }, [load])
+
+  // Wave C's official desk is state-scale and fixed for the selected place.
+  // The 750 ms settle coalesces the lazy Radar mount with any immediate UI
+  // work; map gestures never change the region or trigger provider requests.
+  useEffect(() => {
+    if (tab !== 'radar' || !place) return undefined
+    if (!officialDeskRegion) {
+      setOfficialLayerStates([
+        unavailableSpcOutlook(null, 'not-configured'),
+        unavailableNwsWarnings('not-configured'),
+      ])
+      setOfficialLayerRegionKey(null)
+      return undefined
+    }
+
+    // A new place must never inherit visible official geometry from the prior
+    // desk region during the required settle interval.
+    setOfficialLayerStates([
+      unavailableSpcOutlook('hail', 'not-configured'),
+      unavailableNwsWarnings('not-configured'),
+    ])
+    setOfficialLayerRegionKey(officialDeskRegionKey)
+    const controller = new AbortController()
+    let settled = false
+    const refreshOfficialDesk = async () => {
+      if (!settled || controller.signal.aborted) return
+      const now = new Date().toISOString()
+      const [spc, warnings] = await Promise.all([
+        fetchSpcOutlook({ hazard: 'hail', bbox: officialDeskRegion.bbox, signal: controller.signal, now }),
+        fetchNwsWarnings({ areaCodes: officialDeskRegion.areaCodes, signal: controller.signal, now }),
+      ])
+      if (!controller.signal.aborted) setOfficialLayerStates([spc, warnings])
+    }
+    const settle = setTimeout(() => {
+      settled = true
+      refreshOfficialDesk()
+    }, OFFICIAL_DESK_SETTLE_MS)
+    // Source health is a moving condition, not a label calculated once on
+    // mount. Warnings use the declared 30-second desk poll; the SPC proxy's
+    // five-minute CDN TTL coalesces repeated issuance checks.
+    const refresh = setInterval(refreshOfficialDesk, OFFICIAL_DESK_REFRESH_MS)
+
+    return () => {
+      clearTimeout(settle)
+      clearInterval(refresh)
+      controller.abort()
+    }
+  }, [tab, place, officialDeskRegion, officialDeskRegionKey])
 
   useEffect(() => {
     const id = setInterval(load, REFRESH_MS)
@@ -334,7 +398,7 @@ export default function App() {
             >
               {/* Keyed on the place so switching location rebuilds cleanly
                   rather than trying to reconcile a live Leaflet instance. */}
-              <RadarPanel key={place.key} place={place} alert={radarAlert} />
+              <RadarPanel key={place.key} place={place} alert={radarAlert} officialLayerStates={applicableOfficialLayerStates} />
             </Suspense>
           </div>
         ) : null}
