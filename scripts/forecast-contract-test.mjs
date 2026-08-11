@@ -60,6 +60,12 @@ const GOLDEN_HOURLY = [
   'precipitation_probability',
   'precipitation',
   'weather_code',
+  'dew_point_2m',
+  'apparent_temperature',
+  'relative_humidity_2m',
+  'wind_speed_10m',
+  'wind_gusts_10m',
+  'uv_index',
 ].join(',')
 
 const GOLDEN_DAYS = '11'

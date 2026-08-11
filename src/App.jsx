@@ -379,7 +379,6 @@ export default function App() {
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
             />
-
             <Forecast days={data.days} units={units} place={place} />
           </div>
         ) : null}

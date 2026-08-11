@@ -7,6 +7,7 @@ import WindDial from './WindDial.jsx'
 import SunArc from './SunArc.jsx'
 import HourlyStrip from './HourlyStrip.jsx'
 import AqiStat from './AqiStat.jsx'
+import RunWindows from './RunWindows.jsx'
 
 export default function CurrentCard({
   place,
@@ -54,45 +55,51 @@ export default function CurrentCard({
         </span>
       </header>
 
-      <div className="current__reading">
-        <p className="current__temp">
-          {formatTemp(current.temperature, units)}
-          <span className="current__unit">{units.symbol}</span>
-        </p>
-        <div className="current__summary">
-          <p className="current__condition">{condition.label}</p>
-          <p className="current__feels">Feels like {formatTemp(current.feelsLike, units)}</p>
-          {today ? (
-            <p className="current__range">
-              H {formatTemp(today.tempMax, units)} · L {formatTemp(today.tempMin, units)}
+      <div className="current__hero">
+        <div>
+          <div className="current__reading">
+            <p className="current__temp">
+              {formatTemp(current.temperature, units)}
+              <span className="current__unit">{units.symbol}</span>
+            </p>
+            <div className="current__summary">
+              <p className="current__condition">{condition.label}</p>
+              <p className="current__feels">Feels like {formatTemp(current.feelsLike, units)}</p>
+              {today ? (
+                <p className="current__range">
+                  H {formatTemp(today.tempMax, units)} · L {formatTemp(today.tempMin, units)}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <ConditionBadges
+            code={current.weatherCode}
+            rain={current.rain}
+            showers={current.showers}
+            snow={current.snowfall}
+            units={units}
+            size="lg"
+          />
+
+          {timing ? (
+            <p className="current__precip-timing" role="status">
+              {timing.label}
+            </p>
+          ) : null}
+
+          {precipEvent && firstDryClock ? (
+            <p className="current__precip-timing current__precip-event">
+              <strong>Precip event</strong>{' '}
+              {formatPrecipTotal(precipEvent.soFar, units)} so far · ~
+              {formatPrecipTotal(precipEvent.remaining, units)} more expected · ~
+              {formatPrecipTotal(precipEvent.total, units)} event total · Drying ~{firstDryClock}
             </p>
           ) : null}
         </div>
+
+        <RunWindows day={today} currentTime={current.time} place={place} units={units} />
       </div>
-
-      <ConditionBadges
-        code={current.weatherCode}
-        rain={current.rain}
-        showers={current.showers}
-        snow={current.snowfall}
-        units={units}
-        size="lg"
-      />
-
-      {timing ? (
-        <p className="current__precip-timing" role="status">
-          {timing.label}
-        </p>
-      ) : null}
-
-      {precipEvent && firstDryClock ? (
-        <p className="current__precip-timing current__precip-event">
-          <strong>Precip event</strong>{' '}
-          {formatPrecipTotal(precipEvent.soFar, units)} so far · ~
-          {formatPrecipTotal(precipEvent.remaining, units)} more expected · ~
-          {formatPrecipTotal(precipEvent.total, units)} event total · Drying ~{firstDryClock}
-        </p>
-      ) : null}
 
       <div className="current__panels">
         <div className="panel">

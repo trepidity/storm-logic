@@ -42,6 +42,12 @@ const hourlyTemp = []
 const hourlyChance = []
 const hourlyCode = []
 const hourlyPrecip = []
+const hourlyDewPoint = []
+const hourlyApparent = []
+const hourlyHumidity = []
+const hourlyWind = []
+const hourlyGust = []
+const hourlyUv = []
 // Temperature: forecast day i, hour h → 1000 + i*100 + h (today 14:00 = 1014°).
 // Precip lookback: at current 14:30, last 24h ends at 14:00 and is 24×0.01 = 0.24 in
 // (PAST 15:00–23:00 and START 00:00–14:00).
@@ -60,6 +66,12 @@ for (let di = 0; di < allDates.length; di += 1) {
     // forecast in the next two hours, then 17:00 is the first dry hour.
     const eventStillForecast = date === START && (h === 15 || h === 16)
     hourlyPrecip.push(inLookback ? 0.01 : eventStillForecast ? 0.02 : 0)
+    hourlyDewPoint.push(h >= 16 ? 72 : 54)
+    hourlyApparent.push(1000 + Math.max(forecastIndex, 0) * 100 + h)
+    hourlyHumidity.push(55)
+    hourlyWind.push(10)
+    hourlyGust.push(18)
+    hourlyUv.push(h >= 11 && h <= 15 ? 6 : 1)
   }
 }
 
@@ -117,6 +129,12 @@ const fixture = {
     precipitation_probability: hourlyChance,
     precipitation: hourlyPrecip,
     weather_code: hourlyCode,
+    dew_point_2m: hourlyDewPoint,
+    apparent_temperature: hourlyApparent,
+    relative_humidity_2m: hourlyHumidity,
+    wind_speed_10m: hourlyWind,
+    wind_gusts_10m: hourlyGust,
+    uv_index: hourlyUv,
   },
 }
 
@@ -128,6 +146,10 @@ const airFixture = {
     time: '2026-08-09T14:00',
     interval: 3600,
     us_aqi: 42,
+  },
+  hourly: {
+    time: hourlyTime,
+    us_aqi: hourlyTime.map(() => 42),
   },
 }
 
@@ -239,6 +261,7 @@ for (const [name, viewport] of [
   const page = await browser.newPage({ viewport, deviceScaleFactor: 2 })
   const consoleErrors = []
   let alertMode = 'active'
+  let airMode = 'ready'
   let alertRequests = 0
   let airRequests = 0
   let confidenceRequests = 0
@@ -278,6 +301,13 @@ for (const [name, viewport] of [
   })
   await page.route('**/api/air*', (route) => {
     airRequests += 1
+    if (airMode === 'partial' && route.request().url().includes('hourly=us_aqi')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...airFixture, hourly: { time: [], us_aqi: [] } }),
+      })
+    }
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(airFixture) })
   })
   await page.route('**/api/confidence*', (route) => {
@@ -331,6 +361,14 @@ for (const [name, viewport] of [
     hailDays: [...document.querySelectorAll('.forecast .day')]
       .map((d, i) => (d.textContent.includes('Hail risk') ? i : null))
       .filter((v) => v !== null),
+    runWindows: {
+      title: document.querySelector('.current .run-windows .metric__label')?.textContent?.trim(),
+      items: [...document.querySelectorAll('.current .run-windows > .run-windows__list .run-windows__item')].map((item) => item.textContent?.trim()),
+      status: document.querySelector('.current .run-windows__status')?.textContent?.trim() ?? null,
+      isInsideCurrent: Boolean(document.querySelector('.current .run-windows')),
+      extraStarts: document.querySelector('.current .run-windows details summary')?.textContent?.trim() ?? null,
+      hasDurationControl: Boolean(document.querySelector('.current .run-windows select')),
+    },
   }))
 
   // Guard against stylesheet loss. A CSS section can be deleted without any
@@ -425,10 +463,24 @@ for (const [name, viewport] of [
   if (report.aqi.label !== 'US AQI' || report.aqi.value !== '42' || report.aqi.category !== 'Good') {
     failures.push(`${name}: US AQI current-card widget was not rendered, got ${JSON.stringify(report.aqi)}`)
   }
-  if (report.aqi.count !== 6 || airRequests !== 1) {
+  if (report.aqi.count !== 6 || airRequests !== 2) {
     failures.push(
-      `${name}: AQI should add one current-card stat and one forecast-time request, got ${report.aqi.count} stats / ${airRequests} requests`,
+      `${name}: AQI current card plus Run windows should issue two scoped air requests, got ${report.aqi.count} stats / ${airRequests} requests`,
     )
+  }
+  if (report.runWindows.title !== 'Run window' || report.runWindows.items.length !== 1 || report.runWindows.status !== null || !report.runWindows.isInsideCurrent || report.runWindows.extraStarts !== '3 later starts' || report.runWindows.hasDurationControl) {
+    failures.push(`${name}: Run window must occupy the current-card dead space, use the fixed two-hour default without a duration control, initially show one result, and keep later starts on demand, got ${JSON.stringify(report.runWindows)}`)
+  }
+  if (!report.runWindows.items.some((item) => item.includes('Dewpoint >70°F'))) {
+    failures.push(`${name}: Run windows must disclose the binding constraint rather than a composite score, got ${JSON.stringify(report.runWindows.items)}`)
+  }
+  const twoHourWindow = await page.locator('.run-windows__item').first().innerText()
+  if (!twoHourWindow.startsWith('5:00 PM–7:00 PM')) {
+    failures.push(`${name}: the fixed run window must cover two hours, got ${twoHourWindow}`)
+  }
+  await page.locator('.run-windows details summary').click()
+  if ((await page.locator('.run-windows__item').count()) !== 4) {
+    failures.push(`${name}: later run starts must remain available on demand without consuming the card by default`)
   }
   // L0: code 96 is the current fixture. It can be a risk signal, never a
   // measured-hail observation or a tracking claim.
@@ -671,6 +723,17 @@ for (const [name, viewport] of [
     failures.push(`${name}: Alerts should fetch once per opened surface state, got ${alertRequests}`)
   }
   console.log('alerts:', JSON.stringify({ activeAlert, requests: alertRequests }))
+
+  // A malformed/empty hourly AQI series is not a harmless zero: it explicitly
+  // withdraws the ranking while retaining the independent current-card AQI.
+  await page.locator('.tabs button', { hasText: 'Forecast' }).click()
+  airMode = 'partial'
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForSelector('.run-windows__status', { timeout: 10000 })
+  const partialRunWindows = await page.locator('.run-windows__status').innerText()
+  if (partialRunWindows !== 'Hourly US AQI is unavailable for this location; run windows are not ranked.') {
+    failures.push(`${name}: incomplete hourly AQI must withdraw the ranking, got ${partialRunWindows}`)
+  }
 
   if (consoleErrors.length) failures.push(`${name}: ${consoleErrors.join('; ')}`)
   await page.close()
