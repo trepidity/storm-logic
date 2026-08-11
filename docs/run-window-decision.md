@@ -1,11 +1,10 @@
 # Run-window decision record
 
-**Status: APPROVED BOUNDARY — 2026-08-11.** This is authority for the data
-foundation and the v1 integrity model. The remaining presentation choices in
-§9 must be specified before a user-facing surface ships. Drafted 2026-08-10
-following the user question "can we track the dew point throughout the day and
-use that to provide a runner with the optimal run time based on all the factors
-combined?"
+**Status: APPROVED FOR V1 IMPLEMENTATION — 2026-08-11.** This is authority
+for the data foundation, integrity model, and the resolved presentation choices
+in §9. Drafted 2026-08-10 following the user question "can we track the dew
+point throughout the day and use that to provide a runner with the optimal run
+time based on all the factors combined?"
 
 Precedent: [`outdoor-plan-decision.md`](./outdoor-plan-decision.md) (the first
 decision helper) and [`confidence-discovery.md`](./confidence-discovery.md).
@@ -153,9 +152,9 @@ break by earliest start.
 
 Ratings are hourly because the sources are hourly. Starts are offered only at a
 local hourly boundary; a run touches every hourly bucket whose interval overlaps
-its requested duration. A 45-minute run spanning two buckets takes the worse of
-the two. We do not interpolate between hours to manufacture a finer answer —
-the same posture the severe desk takes in
+its requested duration. V1 fixes that duration at two hours; a run beginning
+at 15:00 touches the 15:00 and 16:00 buckets and takes the worse of the two. We do not
+interpolate between hours to manufacture a finer answer — the same posture the severe desk takes in
 [`severe-desk-provider-contracts.md`](./severe-desk-provider-contracts.md) §7.
 
 ---
@@ -209,8 +208,8 @@ extrapolate either formula merely to keep a ranking factor populated.
 
 ## 6. Window selection
 
-- The user picks a **run duration**; a window is a contiguous span of that
-  length beginning on an offered local hourly boundary.
+- V1 offers a fixed **two-hour run window** beginning on an offered local hourly
+  boundary; it does not ask the user to tune duration.
 - **Night hours are included by default.** Plenty of people run in the dark, and
   excluding them would be us making the user's choice. Daylight is shown as a
   visible property of each window, filterable by the user, not a hard exclusion.
@@ -286,16 +285,16 @@ across a missing hour.**
 
 ---
 
-## 9. Remaining implementation decisions
+## 9. V1 implementation decisions
 
-| ID | Decision | Why it needs the owner |
+| ID | Decision | V1 resolution |
 |---|---|---|
-| **D-RUN-01** | Exact fixed dewpoint band edges and display labels | Convention (§5.1); specify once in the implementation contract, with no per-user setting. |
-| **D-RUN-02** | Whether to promote heat/cold or wind/gust evidence into ranking factors | Requires an exact, disclosed mapping; otherwise they remain evidence-only. |
-| **D-RUN-03** | Default run duration and offered set (30/45/60/90?) | Product shape; all starts remain hourly under §4.3. |
-| **D-RUN-04** | Surface: extend the Outdoor-plan block, add a mode inside it, or a new tab | Affects scope materially. The Outdoor-plan block currently makes **no network request**; this helper does, so folding it in changes that block's contract. |
-| **D-RUN-05** | Post-v1 future-day policy | It cannot rank beyond full evidence coverage or reuse tomorrow confidence as a distant-day claim. |
-| **D-RUN-06** | Added hourly payload delivery | V1 displays only the current local day, but Open-Meteo applies `forecast_days` to the whole request. Choose explicitly between carrying the six new columns in the existing 11-day response and a separate day-scoped same-provider request. |
+| **D-RUN-01** | Exact fixed dewpoint band edges and display labels | Resolved: ≤55 / 56–60 / 61–70 / >70 °F, tiers 0/1/2/3; the convention is visibly disclosed and has no user setting. |
+| **D-RUN-02** | Whether to promote heat/cold or wind/gust evidence into ranking factors | Resolved: remain evidence-only in V1; no unratified mapping is assigned. |
+| **D-RUN-03** | Default run duration and offered set | Resolved: fixed two-hour windows; starts remain hourly and the UI exposes no duration control. |
+| **D-RUN-04** | Surface: extend the Outdoor-plan block, add a mode inside it, or a new tab | Resolved: a separate Current-day `Run windows` surface. Its hourly AQI request is explicit and does not alter Outdoor plan. |
+| **D-RUN-05** | Post-v1 future-day policy | Deferred: future-day ranking remains out of scope and cannot reuse tomorrow confidence as a distant-day claim. |
+| **D-RUN-06** | Added hourly payload delivery | Resolved: carry six columns in the existing 11-day forecast response; V1 consumes only the current local day. |
 
 ---
 

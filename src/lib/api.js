@@ -3,7 +3,7 @@ import {
   FORECAST_DAYS,
   buildUpstreamForecastUrl,
 } from './forecastContract.js'
-import { isUsAqiCoverage, normaliseCurrentAirQuality } from './usAqi.js'
+import { isUsAqiCoverage, normaliseCurrentAirQuality, normaliseHourlyAirQuality } from './usAqi.js'
 import { derivePrecipEvent } from './precipEvent.js'
 import { deriveTomorrowConfidence } from './forecastConfidence.js'
 
@@ -192,6 +192,12 @@ function hourEntry(hourly, index, sunByDate, { isNow = false } = {}) {
     // Already requested for last-24h totals; retained for precip timing / wet hours.
     precipitation: hourly.precipitation?.[index] ?? null,
     cloudCover: hourly.cloud_cover?.[index] ?? null,
+    dewPoint: hourly.dew_point_2m?.[index] ?? null,
+    apparentTemperature: hourly.apparent_temperature?.[index] ?? null,
+    relativeHumidity: hourly.relative_humidity_2m?.[index] ?? null,
+    windSpeed: hourly.wind_speed_10m?.[index] ?? null,
+    windGusts: hourly.wind_gusts_10m?.[index] ?? null,
+    uvIndex: hourly.uv_index?.[index] ?? null,
     isDay: hour >= rise && hour <= set,
   }
 }
@@ -527,6 +533,7 @@ export async function fetchAlerts({ latitude, longitude }, signal) {
  * @param {{ mode?: 'direct' | 'proxy' }} [options]
  */
 export function buildAirQualityUrl({ latitude, longitude }, options = {}) {
+  const hourly = options.hourly === true
   const mode =
     options.mode ??
     (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV
@@ -537,7 +544,7 @@ export function buildAirQualityUrl({ latitude, longitude }, options = {}) {
     const params = new URLSearchParams({
       latitude: latitude.toFixed(4),
       longitude: longitude.toFixed(4),
-      current: 'us_aqi',
+      ...(hourly ? { hourly: 'us_aqi' } : { current: 'us_aqi' }),
       timezone: 'auto',
     })
     return `${OPEN_METEO_AIR}?${params}`
@@ -546,6 +553,7 @@ export function buildAirQualityUrl({ latitude, longitude }, options = {}) {
   return `/api/air?${new URLSearchParams({
     lat: latitude.toFixed(4),
     lon: longitude.toFixed(4),
+    ...(hourly ? { hourly: 'us_aqi' } : {}),
   })}`
 }
 
@@ -558,6 +566,16 @@ export async function fetchAirQuality({ latitude, longitude }, signal, options =
 
   const payload = await getJson(buildAirQualityUrl({ latitude, longitude }, options), signal)
   return normaliseCurrentAirQuality(payload)
+}
+
+export async function fetchHourlyAirQuality({ latitude, longitude }, signal, options = {}) {
+  if (!isUsAqiCoverage(latitude, longitude)) {
+    const err = new Error('US AQI is available only for locations in U.S. coverage.')
+    err.code = 'coverage'
+    throw err
+  }
+  const payload = await getJson(buildAirQualityUrl({ latitude, longitude }, { ...options, hourly: true }), signal)
+  return normaliseHourlyAirQuality(payload)
 }
 
 /**

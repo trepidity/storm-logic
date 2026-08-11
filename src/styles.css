@@ -1063,6 +1063,78 @@ a {
   background: var(--layer-color);
 }
 
+.run-windows {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.run-windows__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.run-windows__status {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.run-windows__duration {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.run-windows__list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.run-windows__item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 3px 10px;
+  padding: 10px 11px;
+  border-left: 3px solid var(--ink-faint);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 0.82rem;
+}
+
+.run-windows__item--tier-0 { border-left-color: #4fd06a; }
+.run-windows__item--tier-1 { border-left-color: #e8e04a; }
+.run-windows__item--tier-2 { border-left-color: #e8a13a; }
+.run-windows__item--tier-3 { border-left-color: #e05a3a; }
+
+.run-windows__item span { color: var(--ink-soft); }
+.run-windows__item small {
+  grid-column: 1 / -1;
+  color: var(--ink-faint);
+}
+
+.run-windows__more {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.run-windows__more summary {
+  width: max-content;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+.run-windows__more[open] summary { margin-bottom: 8px; }
+
 @media (max-width: 640px) {
   .radar {
     padding: 16px;
@@ -1292,6 +1364,25 @@ a {
   align-items: center;
   gap: 22px;
   margin: 10px 0 18px;
+}
+
+.current__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.76fr);
+  align-items: start;
+  gap: 22px;
+  margin: 10px 0 18px;
+}
+
+.current__hero .current__reading {
+  margin: 0 0 18px;
+}
+
+@media (max-width: 760px) {
+  .current__hero {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 .current__temp {
