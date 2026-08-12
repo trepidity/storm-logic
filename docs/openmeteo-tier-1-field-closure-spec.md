@@ -1,7 +1,7 @@
 ---
 title: "Implementation Spec: Open-Meteo Tier 1 field closure"
 date: 2026-08-12
-version: 1.2
+version: 1.4
 status: Draft — dispatch contract, not approval to implement
 owner: Jared
 category: adr
@@ -30,6 +30,12 @@ T-OM-20 additionally requires an approved Severe Desk Wave. T-OM-11 remains
 blocked on the unresolved winter rule D-OM-06; all other Tier 1 forecast-copy
 rules are recorded in [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12).
 
+**Wave 0 is decomposed into its own requirements-and-spec authority:**
+[`openmeteo-tier-1-wave-0-requirements-spec.md`](./openmeteo-tier-1-wave-0-requirements-spec.md).
+It owns the human-facing goal, requirements, expected outcomes, scope, and
+coder handoffs for T-OM-00, T-OM-01, and D-OM-05. This document retains their
+node IDs and action-board status only to preserve Tier 1 dependency visibility.
+
 ### Governing authority
 
 - User direction, 2026-08-11: *"What does Open-Meteo provide that we are not
@@ -45,6 +51,8 @@ rules are recorded in [`api-and-product-brainstorm.md` §10.3](./api-and-product
 - [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12)
   — binding Tier 1 rules for hourly resolution, visibility terminology,
   zero-amount precipitation fallback, and daily precipitation language.
+- [`openmeteo-tier-1-wave-0-requirements-spec.md`](./openmeteo-tier-1-wave-0-requirements-spec.md)
+  — canonical requirements and implementation contract for Phase 0 / Wave 0.
 - `README.md` "The hail caveat" — the hail signal is categorical, derived from
   WMO 96/99, and is explicitly not an amount or a probability.
 - `README.md` "Daily conditions are derived, not reported" — `weather_code` is
@@ -319,6 +327,8 @@ behavior is **excluded**. There is no “best effort” path for the core foreca
 
 ### T-OM-00 — provider safety proof
 
+Canonical requirements and handoff: [`Wave 0 requirements and spec`](./openmeteo-tier-1-wave-0-requirements-spec.md#t-om-00--provider-safety-proof).
+
 - System node: FND-OM-PROVIDER-BEHAVIOR
 - Phase / wave: Phase 0 / Wave 0
 - Hard prerequisites: none — foundation root
@@ -337,6 +347,8 @@ behavior is **excluded**. There is no “best effort” path for the core foreca
 - Coder rule: implement only cited measurement behavior; any unproven field is excluded and any uncited provider behavior or unprobed coordinate is an authority blocker.
 
 ### T-OM-01 — L0 seam declaration
+
+Canonical requirements and handoff: [`Wave 0 requirements and spec`](./openmeteo-tier-1-wave-0-requirements-spec.md#t-om-01--l0-seam-declaration).
 
 - System node: FND-OM-SEAM-DECLARATION
 - Phase / wave: Phase 0 / Wave 0
@@ -559,6 +571,8 @@ behavior is **excluded**. There is no “best effort” path for the core foreca
 
 ### D-OM-05 — correct daily-cloud documentation
 
+Canonical requirements and handoff: [`Wave 0 requirements and spec`](./openmeteo-tier-1-wave-0-requirements-spec.md#d-om-05--daily-cloud-documentation-correction).
+
 - System node: FND-OM-DOCUMENTATION-ACCURACY
 - Phase / wave: Phase 0 / Wave 0
 - Hard prerequisites: Foundation root
@@ -678,6 +692,7 @@ gate above passes and success criteria 1–8 are demonstrably met.
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| 1.4 | 2026-08-12 | Phase 0 / Wave 0 extracted to `openmeteo-tier-1-wave-0-requirements-spec.md`, its canonical requirements-and-spec authority. |
 | 1.3 | 2026-08-12 | Jared replaced D-OM-01 with a provider-safety admission invariant: only fields proven non-fatal enter the core request; every unproven field is excluded. |
 | 1.2 | 2026-08-12 | Jared locked one-hour Outdoor-plan resolution and the D-OM-07–09 forecast-language rules. Phase 4 and T-OM-30–33 were removed; visibility now uses WMO terminology without inferring fog from visibility. |
 | 1.1 | 2026-08-12 | Run Window removed from the product. Dew point is now visible beside hourly temperature; Phase 4 concerns only the Outdoor plan's locked hourly time axis. |
