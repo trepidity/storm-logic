@@ -58,10 +58,11 @@ rules are recorded in [`api-and-product-brainstorm.md` §10.3](./api-and-product
 
 ### Scope
 
-- Establish the empirical provider behavior that determines request
-  partitioning, before any field is added.
-- Add globally-safe hourly and daily fields to the shared forecast contract and
-  normalization layer.
+- Prove an optional field is non-fatal before admitting it to the shared core
+  forecast request. A field that is not proven safe is excluded; it does not
+  create a fallback decision or a degraded core forecast.
+- Add only provider-safe hourly and daily fields to the shared forecast
+  contract and normalization layer.
 - Establish a unit-conversion path for provider fields that `UNIT_PRESETS` does
   not cover.
 - Derive and surface precipitation type, winter rain/snow discrimination,
@@ -142,9 +143,9 @@ or severe-weather claims.**
 
 | Node ID | Node type | Authority refs | Phase | Wave | Provides | Consumes | Hard prerequisites | Closure gate |
 |---|---|---|---|---|---|---|---|---|
-| FND-OM-PROVIDER-BEHAVIOR | Foundation | [`README.md` §Upstream request contract](../README.md#upstream-request-contract) | Phase 0 | 0 | Measured provider response to unsupported, model-dependent, and region-locked variables | Live Open-Meteo forecast endpoint | Foundation root | A committed results table records, per variable class × 4 coordinates, the HTTP status and whether unsupported fields return null arrays or hard-fail the whole request; D-OM-01 is ratified from it |
+| FND-OM-PROVIDER-BEHAVIOR | Foundation | [`README.md` §Upstream request contract](../README.md#upstream-request-contract) | Phase 0 | 0 | A field-by-field core-admission allowlist, with all other candidates excluded | Live Open-Meteo forecast endpoint | Foundation root | A committed results table records, per variable class × 4 coordinates, the HTTP status and per-field value/null/absent/error behavior; it marks each candidate `core-admitted` only when non-fatal at every coordinate, otherwise `excluded` |
 | FND-OM-SEAM-DECLARATION | Foundation | [`test-selection` §Required](/Users/jared/.codex/skills/test-selection/SKILL.md#required-per-project-seam-declaration) | Phase 0 | 0 | The repo's declared L0 consumer seam list | Existing test suite | Foundation root | `README.md` names the concrete entry points a test may drive and the artifacts it may assert against; no test task dispatches before it exists |
-| FND-OM-CONTRACT | Foundation | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`forecastContract.js`](../src/lib/forecastContract.js#L1) | Phase 1 | A | All globally-safe Tier 1 fields on the wire and in the normalized object | Forecast endpoint; D-OM-01 | FND-OM-PROVIDER-BEHAVIOR, FND-OM-SEAM-DECLARATION | `npm run test:contract` proves both issued URLs carry the new golden lists **and a recorded payload normalizes every added field to its declared key or `null`** |
+| FND-OM-CONTRACT | Foundation | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`forecastContract.js`](../src/lib/forecastContract.js#L1) | Phase 1 | A | Only core-admitted Tier 1 fields on the wire and in the normalized object | Forecast endpoint; core-admission allowlist | FND-OM-PROVIDER-BEHAVIOR, FND-OM-SEAM-DECLARATION | `npm run test:contract` proves both issued URLs carry the approved golden lists **and a recorded payload normalizes every added field to its declared key or `null`** |
 | FND-OM-UNITS | Foundation | [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect); [`format.js`](../src/lib/format.js#L1) | Phase 1 | A | A unit-aware length/height formatter for metre-denominated provider fields | `UNIT_PRESETS` | FND-OM-SEAM-DECLARATION | A rendered metre value is converted per active unit preset; no metre-denominated field reaches a surface unconverted |
 | FND-OM-DOCUMENTATION-ACCURACY | Foundation | [`README.md` §What it shows](../README.md#what-it-shows); [`forecastContract.js`](../src/lib/forecastContract.js#L68) | Phase 0 | 0 | Accurate description of the client-side daylight mean | Existing documentation and contract comments | Foundation root | Committed README and contract-comment correction says Open-Meteo lacks a **daylight-restricted** daily cloud variable; no provider 24-hour aggregate replaces the client derivation |
 | CAP-OM-PRECIP-TYPE | Capability | [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12); [`README.md` §Daily conditions](../README.md#daily-conditions-are-derived-not-reported) | Phase 2 | B | Hourly precipitation type from measured amounts, with qualified WMO fallback only when all measured amounts are zero | Normalized hourly rain/showers/snowfall; WMO code; probability | FND-OM-CONTRACT | An hour whose measured split contradicts its `weather_code` is classified from the measured split; a zero-amount WMO event uses the ratified qualified fallback |
@@ -172,7 +173,7 @@ is six merge conflicts and a golden list that drifts from the contract it is
 supposed to independently verify.
 
 **Design decision:** the shared-file work is deliberately *serialized into a
-single foundation task* (T-OM-02), which adds every globally-safe field at
+single foundation task* (T-OM-02), which adds every core-admitted field at
 once. Derivation and surface work then fans out across files that do not
 overlap.
 
@@ -225,9 +226,9 @@ rather than a tautology.
 
 | Authority ref | Behavior / decision | Task ID | Implementation seam | Acceptance evidence | Owner |
 |---|---|---|---|---|---|
-| [`README.md` §Upstream request contract](../README.md#upstream-request-contract) | Provider failure mode for unsupported variables is measured, not assumed | T-OM-00 | throwaway probe → `docs/` results table | Committed status/response table across 4 coordinates × 3 variable classes | probe lane |
+| [`README.md` §Upstream request contract](../README.md#upstream-request-contract) | Core admission is proven, not assumed; all non-admitted fields are excluded | T-OM-00 | throwaway probe → `docs/` allowlist | Committed status/response table across 4 coordinates × 3 variable classes, with a per-field admission disposition | probe lane |
 | [`test-selection` §Required](/Users/jared/.codex/skills/test-selection/SKILL.md#required-per-project-seam-declaration) | L0 seams are declared before test work is dispatched | T-OM-01 | `README.md` | A named seam list a reviewer can hold a test against | standards lane |
-| [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor) | Globally-safe fields reach both the browser and proxy paths identically | T-OM-02 | `forecastContract.js` → `forecast-contract-test.mjs` → `api.js` | `npm run test:contract` proves both issued URLs and a recorded payload's normalized fields | contract lane |
+| [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor) | Only core-admitted fields reach both the browser and proxy paths identically | T-OM-02 | `forecastContract.js` → `forecast-contract-test.mjs` → `api.js` | `npm run test:contract` proves both issued URLs and a recorded payload's normalized fields | contract lane |
 | [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect) | Metre-denominated provider fields are never rendered raw | T-OM-03 | `format.js` | An imperial `snow_depth` of 0.03 renders as ~1 in, not 0.03 | units lane |
 | [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12) | Precipitation type comes from measured amounts; an all-zero event uses qualified WMO fallback copy | T-OM-10 | `precipType.js` → `HourlyStrip` | A zero-amount WMO rain hour renders `Possible rain`, while missing amounts do not become zero | precip-type lane |
 | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-06** | Approved rain/snow and snow-line presentation | T-OM-11 | `winterConditions.js` → `ConditionBadges` | The ratified boundary and relative-elevation copy pass their fixtures | badges lane |
@@ -273,10 +274,18 @@ judgment call.
 
 ## Decision gaps and blockers
 
+### Provider-safety invariant — locked 2026-08-12
+
+Provider safety is not a product decision. An optional field enters the shared
+core request only when T-OM-00 proves it is non-fatal at every probe
+coordinate. A core-admitted field may normalize a provider omission as `null`
+and show the existing unavailable state; it may not make the core request fail.
+Any field that produces a request error, incomplete response, or unproven
+behavior is **excluded**. There is no “best effort” path for the core forecast.
+
 | ID | Gap | Blocks | Closure requirement |
 |---|---|---|---|
-| **D-OM-01** | Does an unsupported variable return null arrays or hard-fail the whole request? | T-OM-02 scope; T-OM-20 architecture | Ratified from T-OM-00's measured results table |
-| **D-OM-02** | Single request vs. core + conditional request partition | T-OM-20 | Decision record naming the partition, the conditional route (if any), its cache policy, and its independent-failure behavior. **Standing recommendation: core + conditional regardless of D-OM-01**, so that severe-weather fields cannot take down the request that renders the current temperature |
+| **D-OM-02** | Single request vs. core + conditional request partition | T-OM-20 | Decision record naming the partition, the conditional route (if any), its cache policy, and its independent-failure behavior. **Standing recommendation: core + conditional**, so that severe-weather fields cannot take down the request that renders the current temperature |
 | **D-OM-05** | `README.md` states *"Open-Meteo has no daily cloud variable."* `mean_cloud_cover` / `maximum_cloud_cover` / `minimum_cloud_cover` now exist. The **reasoning remains correct** — the client-side mean is daylight-bounded and the provider's is 24-hour — but the stated fact is wrong | Documentation accuracy only | Correct the claim to "no daylight-restricted daily cloud variable" in `README.md` and `forecastContract.js`. **Do not** substitute the provider variable |
 | **D-OM-06** | `api-and-product-brainstorm.md` names snow depth, not a wet-bulb cutoff, snow-line calculation, or user-facing winter copy. Those are product decisions, not a formatter choice | T-OM-11 | Decision record defines whether wet-bulb discrimination is in scope, its exact boundary and mixed/unknown state, the snow-line calculation, and bounded copy relative to payload elevation |
 
@@ -308,24 +317,24 @@ judgment call.
 
 ## Task breakdown and coder handoffs
 
-### T-OM-00 — provider behavior probe
+### T-OM-00 — provider safety proof
 
 - System node: FND-OM-PROVIDER-BEHAVIOR
 - Phase / wave: Phase 0 / Wave 0
 - Hard prerequisites: none — foundation root
-- Provides / consumes: provides the measured basis for D-OM-01 and D-OM-02;
-  consumes the live forecast endpoint
+- Provides / consumes: provides the core-admission allowlist and measured basis
+  for D-OM-02; consumes the live forecast endpoint
 - Closure gate: `docs/openmeteo-variable-availability.md` records HTTP status
-  and per-field null/absent/error behavior for 4 coordinates (Kansas City,
-  London, Nairobi, Sydney) × 3 classes (globally safe, model-dependent,
-  region-locked), and D-OM-01 is ratified from it
+  and per-field value/null/absent/error behavior for 4 coordinates (Kansas
+  City, London, Nairobi, Sydney) × 3 classes (core candidate, model-dependent,
+  region-locked), and marks each candidate `core-admitted` or `excluded`
 - Authority refs: [`README.md` §Upstream request contract](../README.md#upstream-request-contract)
 - Allowed write scope: `scripts/openmeteo-variable-probe.mjs` (throwaway),
   `docs/openmeteo-variable-availability.md`
-- Acceptance evidence: the committed table; the probe script deleted in the
-  same commit that records the results
+- Acceptance evidence: the committed allowlist; every excluded field has its
+  observed reason; the probe script is deleted in the same commit
 - Test posture: **no test owed.** This is measurement, not product behavior.
-- Coder rule: implement only cited measurement behavior; any uncited provider behavior or unprobed coordinate is a blocker requiring authority.
+- Coder rule: implement only cited measurement behavior; any unproven field is excluded and any uncited provider behavior or unprobed coordinate is an authority blocker.
 
 ### T-OM-01 — L0 seam declaration
 
@@ -352,9 +361,9 @@ judgment call.
 
 - System node: FND-OM-CONTRACT
 - Phase / wave: Phase 1 / Wave A
-- Hard prerequisites: FND-OM-PROVIDER-BEHAVIOR (D-OM-01 ratified),
-  FND-OM-SEAM-DECLARATION
-- Provides / consumes: provides every globally-safe Tier 1 field on the wire
+- Hard prerequisites: FND-OM-PROVIDER-BEHAVIOR (core-admission allowlist
+  committed), FND-OM-SEAM-DECLARATION
+- Provides / consumes: provides every core-admitted Tier 1 field on the wire
   and in the normalized object; consumes the forecast endpoint
 - **Runs alone.** No Phase 1 or Phase 2 task may hold a concurrent edit to
   `forecastContract.js`, `forecast-contract-test.mjs`, or `api.js`.
@@ -572,7 +581,7 @@ A task moves to `ready` only when every hard prerequisite is `closed`.
 
 | Task | Node | Phase | Lane | Prereqs | Status | Closure gate |
 |---|---|---|---|---|---|---|
-| **T-OM-00** probe | FND-OM-PROVIDER-BEHAVIOR | 0 | probe | — | `ready` | results table committed; D-OM-01 ratified |
+| **T-OM-00** safety proof | FND-OM-PROVIDER-BEHAVIOR | 0 | probe | — | `ready` | core-admission allowlist committed; all other fields excluded |
 | **T-OM-01** seam declaration | FND-OM-SEAM-DECLARATION | 0 | standards | — | `ready` | committed `README.md` seam list |
 | **T-OM-02** contract | FND-OM-CONTRACT | 1 | contract | T-OM-00, T-OM-01 | `blocked` | `npm run test:contract` |
 | **T-OM-03** units | FND-OM-UNITS | 1 | units | T-OM-01 | `blocked` | `node scripts/format-test.mjs` |
@@ -585,8 +594,9 @@ A task moves to `ready` only when every hard prerequisite is `closed`.
 | **D-OM-05** README correction | FND-OM-DOCUMENTATION-ACCURACY | 0 | standards | — | `ready` | committed documentation correction |
 
 **Conceptually ready after explicit named-task approval: T-OM-00, T-OM-01,
-D-OM-05.** D-OM-03, D-OM-07, D-OM-08, and D-OM-09 are ratified; the remaining
-work is correctly blocked by named provider, winter-rule, Severe Desk, or
+D-OM-05.** Provider safety is a binding admission invariant, not an open
+decision. D-OM-03, D-OM-07, D-OM-08, and D-OM-09 are ratified; the remaining
+work is correctly blocked by named proof, winter-rule, Severe Desk, or
 upstream-task gates. This is a dependency state, not a scheduling problem to
 route around.
 
@@ -668,6 +678,7 @@ gate above passes and success criteria 1–8 are demonstrably met.
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| 1.3 | 2026-08-12 | Jared replaced D-OM-01 with a provider-safety admission invariant: only fields proven non-fatal enter the core request; every unproven field is excluded. |
 | 1.2 | 2026-08-12 | Jared locked one-hour Outdoor-plan resolution and the D-OM-07–09 forecast-language rules. Phase 4 and T-OM-30–33 were removed; visibility now uses WMO terminology without inferring fog from visibility. |
 | 1.1 | 2026-08-12 | Run Window removed from the product. Dew point is now visible beside hourly temperature; Phase 4 concerns only the Outdoor plan's locked hourly time axis. |
 | 1.0 | 2026-08-11 | Initial decomposition. |
