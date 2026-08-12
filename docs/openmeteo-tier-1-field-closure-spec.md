@@ -1,7 +1,7 @@
 ---
 title: "Implementation Spec: Open-Meteo Tier 1 field closure"
-date: 2026-08-11
-version: 1.0
+date: 2026-08-12
+version: 1.2
 status: Draft — dispatch contract, not approval to implement
 owner: Jared
 category: adr
@@ -11,7 +11,6 @@ tags:
   - precipitation-type
   - visibility
   - convective-ingredients
-  - sub-hourly
   - units
 ---
 
@@ -27,9 +26,9 @@ wanted, but that the request contract does not carry today.
 
 This is a decomposition and dispatch contract, **not approval to implement any
 Task**. Only explicit approval of a named Task ID authorizes code changes.
-Tasks T-OM-20 and T-OM-30–33 additionally require amendment of prior locked
-authority. T-OM-10, T-OM-11, T-OM-12, and T-OM-14 require new product decisions
-before dispatch (see [Decision gaps and blockers](#decision-gaps-and-blockers)).
+T-OM-20 additionally requires an approved Severe Desk Wave. T-OM-11 remains
+blocked on the unresolved winter rule D-OM-06; all other Tier 1 forecast-copy
+rules are recorded in [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12).
 
 ### Governing authority
 
@@ -43,9 +42,9 @@ before dispatch (see [Decision gaps and blockers](#decision-gaps-and-blockers)).
 - [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect)
   — trust over severity theater; thin chrome; clear provider boundaries;
   free-tier realism.
-- [`api-and-product-brainstorm.md` §10.1](./api-and-product-brainstorm.md#101-air-quality--locked-scale-and-scope)
-  — the coverage-gate precedent: outside coverage, explicit message and **no
-  upstream call**. Binding pattern for T-OM-30.
+- [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12)
+  — binding Tier 1 rules for hourly resolution, visibility terminology,
+  zero-amount precipitation fallback, and daily precipitation language.
 - `README.md` "The hail caveat" — the hail signal is categorical, derived from
   WMO 96/99, and is explicitly not an amount or a probability.
 - `README.md` "Daily conditions are derived, not reported" — `weather_code` is
@@ -53,7 +52,7 @@ before dispatch (see [Decision gaps and blockers](#decision-gaps-and-blockers)).
 - [`severe-desk-waved-roadmap.md`](./severe-desk-waved-roadmap.md) — governs any
   change to Severe Desk surfaces. Constrains T-OM-20.
 - [`outdoor-plan-decision.md`](./outdoor-plan-decision.md) — longest dry
-  *daylight hour* window. Constrains T-OM-30–33.
+  *daylight hour* window. Its hourly resolution remains unchanged.
 - Current implementation: `src/lib/forecastContract.js`, `src/lib/api.js`,
   `src/lib/format.js`, `scripts/forecast-contract-test.mjs`.
 
@@ -67,8 +66,8 @@ before dispatch (see [Decision gaps and blockers](#decision-gaps-and-blockers)).
   not cover.
 - Derive and surface precipitation type, winter rain/snow discrimination,
   visibility, cloud layering, and daily dewpoint/probability aggregates.
-- Record — but leave visibly blocked — the convective-ingredient and sub-hourly
-  work whose authority is owned by other specs.
+- Record — but leave visibly blocked — convective-ingredient work whose
+  authority is owned by the Severe Desk roadmap.
 
 ### Non-goals
 
@@ -94,23 +93,20 @@ generic weather code or a single daily number.
 
 | Deliverable | In plain English | Where it appears | What it will not claim | Delivery state |
 |---|---|---|---|---|
-| **Rain, snow, and showers through the day** | The hourly forecast can show whether precipitation is rain, snow, showers, or a transition between them, based on the forecast amounts rather than a broad weather icon. | The existing hourly forecast strip. | It does not turn a model forecast into an observation or invent a type when the measured components are inconclusive. | Planned; we first decide what to show when the forecast says precipitation is possible but reports zero rain, shower, and snow amounts. |
+| **Rain, snow, and showers through the day** | The hourly forecast can show whether precipitation is rain, snow, showers, or a transition between them, based on the forecast amounts rather than a broad weather icon. When an amount is zero but forecast evidence still signals precipitation, it uses qualified, useful “possible” copy. | The existing hourly forecast strip. | It does not turn a model forecast into an observation or turn an unavailable amount into zero. | Planned after the shared forecast contract closes. |
 | **Better winter context** | On snowy days, the forecast can show snow on the ground and explain the local freezing-level context in the selected unit system. | Existing forecast-day detail and badges. | It does not make a road-condition claim, a safety recommendation, or a snow forecast from an unratified wet-bulb rule. | Planned; we first decide whether and how to use wet-bulb temperature to describe rain versus snow, and the exact wording for the freezing-level context. |
-| **Visibility and fog context** | A user can see poor visibility as evidence for fog-like conditions even when the weather code does not say “fog.” | Existing forecast-day detail and badges. | It does not assert fog from an arbitrary cutoff or override a defined unavailable state. | Planned; we first decide what visibility counts as fog, and what wins if visibility and the weather code disagree. |
+| **Visibility and fog context** | Fog and rime fog use their WMO names; dense fog is reserved for a fog-code hour at 400 m / one-quarter mile or less. Other low-visibility conditions are described without falsely calling them fog. | Existing forecast-day detail and badges. | It does not infer fog or mist from a raw visibility distance. | Planned after the shared forecast contract and unit formatter close. |
 | **What kind of cloudy day it is** | The forecast distinguishes clouds overhead at different heights: low gray cloud, mid-level cloud, or high cloud. Two days with the same total cloud percentage no longer have to read the same. | Existing cloud meter and daily explanation. | It does not replace the current daylight-only cloud average with Open-Meteo’s all-day aggregate. | Planned after the shared forecast contract closes. |
-| **A more honest daily rain-chance story** | A day that briefly reaches a high rain chance can be described differently from a day with a sustained chance. Daily moisture evidence is retained instead of being discarded. | Existing daily forecast row and its explanation. | It does not replace the current accumulated-precipitation corroboration rule or turn a probability into a promise. | Planned; we first decide the exact difference in wording between a brief chance and a sustained chance. |
+| **A more honest daily rain-chance story** | A corroborated chance of 40% or more reads “likely,” “likely much of the day,” “likely at times,” or a local-daypart phrase such as “likely in the afternoon,” according to complete forecast evidence. | Existing daily forecast row and its explanation. | It does not replace the current accumulated-precipitation corroboration rule or turn a probability into a promise. | Planned after the shared forecast contract closes. |
 
-### Decisions still needed before those features can be built
+### Decision still needed before those features can be built
 
 These are product choices, not technical cleanup. The technical IDs remain in
 the implementation plan; this table states what a person needs to decide.
 
 | Product decision | The plain-language question | Why it matters |
 |---|---|---|
-| **When forecast amounts disagree with the weather icon** (`D-OM-08`) | If the icon/probability suggests precipitation but rain, showers, and snow amounts are all zero, should the forecast say “possible precipitation,” identify a type from the icon, or stay silent? | Choosing a type without evidence can make rain read as snow, or vice versa. |
 | **How to describe winter precipitation** (`D-OM-06`) | Should we use wet-bulb temperature to say a near-freezing hour is more likely rain or snow? If so, what boundary and what “unknown/mixed” wording are acceptable? | This determines whether winter copy is useful evidence or an overconfident claim. |
-| **What “fog” means in the product** (`D-OM-07`) | At what visibility should the app call conditions foggy? If the weather code says fog but visibility does not, or the reverse, which evidence should the app trust? | A visible fog badge needs a stable, explainable rule instead of an arbitrary number in code. |
-| **How daily rain chance should read** (`D-OM-09`) | What should the forecast say when rain chance peaks briefly versus stays elevated for much of the day? | This determines the user-facing language; the extra aggregate alone is not a feature. |
 
 ### Work users will not see directly, but which keeps the feature set honest
 
@@ -124,13 +120,14 @@ the implementation plan; this table states what a person needs to decide.
 ### Explicitly outside the delivered Tier 1 slice for now
 
 These ideas are recorded because they are attractive, not because this spec
-authorizes their implementation. They remain visibly blocked until their
-separate product and authority decisions exist.
+authorizes their implementation. Their disposition is explicit: convective
+work remains blocked behind separate authority; sub-hourly Outdoor-plan work is
+rejected for Tier 1.
 
 | Deferred idea | The eventual user value | Why it is not being built now |
 |---|---|---|
 | **Convective ingredients in Severe Desk** | A severe-weather panel could show model ingredients such as instability and inhibition beside official severe-weather context. | It needs a separate conditional-request design and an explicitly approved Severe Desk Wave. It must never be presented as a hail probability, observation, or storm guarantee. |
-| **Native 15-minute precipitation and finer Outdoor-plan windows** | In supported areas, the Outdoor plan could end at a true 15-minute boundary instead of the nearest hour. | It changes the Outdoor plan's locked hourly time model. |
+| **Native 15-minute precipitation and finer Outdoor-plan windows** | Native data could show a dry-window edge between two hours. | Rejected for Tier 1: Outdoor-plan windows are never smaller than one hour. |
 
 ### The one-sentence product promise
 
@@ -150,19 +147,16 @@ or severe-weather claims.**
 | FND-OM-CONTRACT | Foundation | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`forecastContract.js`](../src/lib/forecastContract.js#L1) | Phase 1 | A | All globally-safe Tier 1 fields on the wire and in the normalized object | Forecast endpoint; D-OM-01 | FND-OM-PROVIDER-BEHAVIOR, FND-OM-SEAM-DECLARATION | `npm run test:contract` proves both issued URLs carry the new golden lists **and a recorded payload normalizes every added field to its declared key or `null`** |
 | FND-OM-UNITS | Foundation | [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect); [`format.js`](../src/lib/format.js#L1) | Phase 1 | A | A unit-aware length/height formatter for metre-denominated provider fields | `UNIT_PRESETS` | FND-OM-SEAM-DECLARATION | A rendered metre value is converted per active unit preset; no metre-denominated field reaches a surface unconverted |
 | FND-OM-DOCUMENTATION-ACCURACY | Foundation | [`README.md` §What it shows](../README.md#what-it-shows); [`forecastContract.js`](../src/lib/forecastContract.js#L68) | Phase 0 | 0 | Accurate description of the client-side daylight mean | Existing documentation and contract comments | Foundation root | Committed README and contract-comment correction says Open-Meteo lacks a **daylight-restricted** daily cloud variable; no provider 24-hour aggregate replaces the client derivation |
-| CAP-OM-PRECIP-TYPE | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`README.md` §Daily conditions](../README.md#daily-conditions-are-derived-not-reported) | Phase 2 | B | Hourly precipitation type from measured amounts, not `weather_code` | Normalized hourly rain/showers/snowfall | FND-OM-CONTRACT, **D-OM-08** | An hour whose measured split contradicts its `weather_code` is classified from the measured split; a mixed-type event preserves its transition |
+| CAP-OM-PRECIP-TYPE | Capability | [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12); [`README.md` §Daily conditions](../README.md#daily-conditions-are-derived-not-reported) | Phase 2 | B | Hourly precipitation type from measured amounts, with qualified WMO fallback only when all measured amounts are zero | Normalized hourly rain/showers/snowfall; WMO code; probability | FND-OM-CONTRACT | An hour whose measured split contradicts its `weather_code` is classified from the measured split; a zero-amount WMO event uses the ratified qualified fallback |
 | CAP-OM-WINTER | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor) | Phase 2 | B | Approved winter evidence presentation | Normalized wet-bulb, freezing level, snow depth, payload `elevation` | FND-OM-CONTRACT, FND-OM-UNITS, **D-OM-06** | Snow depth and freezing level render in the active unit system; only the approved wet-bulb/snow-line rule is shown |
-| CAP-OM-VISIBILITY | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor) | Phase 2 | B | Approved threshold-based fog state | Normalized hourly visibility | FND-OM-CONTRACT, FND-OM-UNITS, **D-OM-07** | The ratified visibility threshold produces a fog state with no supporting fog `weather_code`; visibility renders in the active unit system |
+| CAP-OM-VISIBILITY | Capability | [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12) | Phase 2 | B | WMO-named fog/rime-fog state with a dense-fog qualifier and evidence-only low-visibility fallback | Normalized hourly visibility; WMO code | FND-OM-CONTRACT, FND-OM-UNITS | A fog-code hour at 400 m renders dense fog; a non-fog-code hour with the same visibility does not render fog; visibility renders in the active unit system |
 | CAP-OM-SKY-LAYERS | Capability | [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect); [`CloudMeter.jsx`](../src/components/CloudMeter.jsx#L1) | Phase 2 | B | Low/mid/high cloud distribution per hour and per day | Normalized layered cloud cover | FND-OM-CONTRACT | Two days at identical total cloud cover but inverted layer distribution do not produce the same description |
-| CAP-OM-DAILY-AGGREGATES | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`daySummary.js`](../src/lib/daySummary.js#L1) | Phase 2 | B | Approved daily dewpoint/probability evidence presentation | Normalized daily aggregates | FND-OM-CONTRACT, **D-OM-09** | The ratified copy rule distinguishes a brief probability spike from a sustained equal-mean probability |
+| CAP-OM-DAILY-AGGREGATES | Capability | [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12); [`daySummary.js`](../src/lib/daySummary.js#L1) | Phase 2 | B | Daily dewpoint/probability evidence with duration and local-daypart language | Normalized daily mean/max aggregates and complete hourly evidence | FND-OM-CONTRACT | A corroborated 40%+ day renders `likely much of the day` at 40%+ mean, a daypart qualifier when confined, and `likely at times` when it crosses dayparts |
 | CAP-OM-CONVECTIVE | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`README.md` §Hail caveat](../README.md#the-hail-caveat) | Phase 3 | C | CAPE, lifted index, CIN, and daily max updraft as *ingredients* | Conditional forecast request | FND-OM-CONTRACT; **D-OM-02**; severe-desk Wave approval | High CAPE under strong CIN produces no storm signal; no ingredient is presented as a hail amount, probability, or observation |
-| FND-OM-SUBHOURLY-AUTHORITY | Foundation | [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary) | Phase 4 | D | Amended authority permitting sub-hourly Outdoor-plan boundaries | Outdoor-plan decision record | **D-OM-03** | An amended Outdoor-plan decision record supersedes the locked hourly-window resolution and states the sub-hourly presentation rule |
-| CAP-OM-SUBHOURLY-EVIDENCE | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`api-and-product-brainstorm.md` §10.1](./api-and-product-brainstorm.md#101-air-quality--locked-scale-and-scope) | Phase 4 | D | A native 15-minute series where natively available, and an explicit hourly-resolution state elsewhere | `minutely_15` block; coverage predicate | FND-OM-SUBHOURLY-AUTHORITY, FND-OM-CONTRACT | Outside native coverage no `minutely_15` request is issued and the surface reports hourly resolution; interpolated data is never presented as observed sub-hourly detail |
-| FEAT-OM-SUBHOURLY-WINDOWS | Feature | [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary) | Phase 4 | D | Outdoor-plan windows at native resolution where available | Sub-hourly evidence; Outdoor-plan derivation | CAP-OM-SUBHOURLY-EVIDENCE | A dry-window boundary falling mid-hour is reported at its true sub-hourly edge; the resolution in use is visible; out-of-coverage locations retain hourly Outdoor-plan windows |
 
-Hard prerequisites override desired delivery order. Phase 3 and Phase 4 nodes
-are **not dispatchable** until their named decision gaps close, regardless of
-Phase 1–2 progress.
+Hard prerequisites override desired delivery order. Phase 3 is **not
+dispatchable** until its named decision gap and Severe Desk Wave approval close,
+regardless of Phase 1–2 progress.
 
 ---
 
@@ -191,10 +185,9 @@ overlap.
 | **contract lane** | T-OM-02 | `forecastContract.js`, `forecast-contract-test.mjs`, `api.js` | Every task that needs these files — serialized, but T-OM-03 may run concurrently |
 | **units lane** | T-OM-03 | `format.js`, `scripts/format-test.mjs` | none (disjoint from contract lane) |
 | **precip-type lane** | T-OM-10 | `precipType.js`, `precipEvent.js`, `HourlyStrip.jsx` | none |
-| **badges lane** | T-OM-11, then T-OM-12 | `winterConditions.js` / `visibility.js`, shared `ConditionBadges.jsx` | **T-OM-11 ↔ T-OM-12** — serial |
+| **badges lane** | T-OM-12, then T-OM-11 | `visibility.js` / `winterConditions.js`, shared `ConditionBadges.jsx` | **T-OM-12 ↔ T-OM-11** — serial; visibility runs first because its product rule is ratified |
 | **summary lane** | T-OM-13, then T-OM-14 | shared `daySummary.js`, plus `CloudMeter.jsx` / `DayRow.jsx` and task-specific scripts | **T-OM-13 ↔ T-OM-14** — serial |
 | **convective lane** | T-OM-20 | `severeDesk/convectiveIngredients.js`, conditional proxy | contract lane |
-| **subhourly lane** | T-OM-30–33 | `outdoorPlan.js` and its focused tests | contract lane |
 
 ### Concurrency schedule
 
@@ -206,17 +199,15 @@ Phase 1   ├─ T-OM-02 (contract) ────────────┐   sh
           └─ T-OM-03 (units) ───────────────┤   disjoint; may run with T-OM-02
                                             ▼
 Phase 2   ├─ T-OM-10  precip type ──────────┐
-          ├─ T-OM-11 → T-OM-12 badges ──────┤   three collision-free lanes
+          ├─ T-OM-12 → T-OM-11 badges ──────┤   three collision-free lanes
           └─ T-OM-13 → T-OM-14 summary ─────┘
                                             ▼
 Phase 3   └─ T-OM-20  convective ── BLOCKED on D-OM-02 + severe-desk Wave approval
-                                            ▼
-Phase 4   └─ T-OM-30…33 sub-hourly ─ BLOCKED on D-OM-03 authority amendment
 ```
 
 Phase 2 has three concurrent lanes after T-OM-02: T-OM-10, the badges lane,
 and the summary lane. The two tasks in each shared-component/shared-derivation
-lane are deliberately serial. T-OM-11 and T-OM-12 both consume the T-OM-03
+lane are deliberately serial. T-OM-12 and T-OM-11 both consume the T-OM-03
 formatter read-only, but they also both modify `ConditionBadges.jsx`; T-OM-13
 and T-OM-14 both modify `daySummary.js`. Those collisions are now explicit
 rather than hidden behind lane labels.
@@ -238,16 +229,12 @@ rather than a tautology.
 | [`test-selection` §Required](/Users/jared/.codex/skills/test-selection/SKILL.md#required-per-project-seam-declaration) | L0 seams are declared before test work is dispatched | T-OM-01 | `README.md` | A named seam list a reviewer can hold a test against | standards lane |
 | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor) | Globally-safe fields reach both the browser and proxy paths identically | T-OM-02 | `forecastContract.js` → `forecast-contract-test.mjs` → `api.js` | `npm run test:contract` proves both issued URLs and a recorded payload's normalized fields | contract lane |
 | [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect) | Metre-denominated provider fields are never rendered raw | T-OM-03 | `format.js` | An imperial `snow_depth` of 0.03 renders as ~1 in, not 0.03 | units lane |
-| [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-08** | Precipitation type comes from measured amounts, not the severity code | T-OM-10 | `precipType.js` → `HourlyStrip` | An hour with `snowfall > 0`, `rain = 0`, `weather_code: 63` classifies as snow | precip-type lane |
+| [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12) | Precipitation type comes from measured amounts; an all-zero event uses qualified WMO fallback copy | T-OM-10 | `precipType.js` → `HourlyStrip` | A zero-amount WMO rain hour renders `Possible rain`, while missing amounts do not become zero | precip-type lane |
 | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-06** | Approved rain/snow and snow-line presentation | T-OM-11 | `winterConditions.js` → `ConditionBadges` | The ratified boundary and relative-elevation copy pass their fixtures | badges lane |
-| [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-07** | Fog is a ratified visibility threshold, not a code lookup | T-OM-12 | `visibility.js` → `ConditionBadges`, `skyTheme` | The ratified no-fog-code case and unit rendering pass their fixtures | badges lane |
+| [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12) | Fog names come from WMO codes; visibility qualifies density but does not invent fog | T-OM-12 | `visibility.js` → `ConditionBadges`, `skyTheme` | A ≤400 m fog-code case is dense fog; a no-fog-code case is reduced visibility | badges lane |
 | [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect) | Total cloud cover is decomposed into layers | T-OM-13 | `api.js` layered means (via T-OM-02) → `CloudMeter` | 80 % high cloud and 80 % low cloud produce different descriptions | summary lane |
-| [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-09** | Ratified daily probability evidence distinguishes a spike from a sustained chance | T-OM-14 | `daySummary.js` | The decision record's spike-versus-sustained fixture passes | summary lane |
+| [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12) | Daily probability copy uses duration and evidence-supported local-daypart language | T-OM-14 | `daySummary.js` | A high-mean fixture renders `likely much of the day`; a one-daypart fixture renders `likely in the afternoon`; incomplete evidence stays `likely` | summary lane |
 | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`README.md` §Hail caveat](../README.md#the-hail-caveat) | Ingredients are ingredients; CIN suppresses the signal | T-OM-20 | `severeDesk/convectiveIngredients.js` | A named focused fixture command proves CAPE/CIN suppression | convective lane |
-| [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`api-and-product-brainstorm.md` §10.1](./api-and-product-brainstorm.md#101-air-quality--locked-scale-and-scope) | Native sub-hourly only; interpolation is never sold as observation | T-OM-30 | coverage predicate → proxy contract | A coverage fixture proves no out-of-coverage request | subhourly lane |
-| [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03** | Normalize native 15-minute evidence alongside hourly evidence | T-OM-31 | `api.js` normalized `quarterHours` | A fixture proves source timestamps and explicit nulls | subhourly lane |
-| [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03** | Derive a native-resolution dry window only after authority is amended | T-OM-32 | `quarterHours` → `outdoorPlan` | Fixture proves the 06:45 boundary | subhourly lane |
-| [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03** | Display native or hourly Outdoor-plan resolution honestly | T-OM-33 | Outdoor-plan derivation → consumer surface | Browser fixture proves visible resolution and the true boundary | subhourly lane |
 | [`README.md` §What it shows](../README.md#what-it-shows) | Correct the inaccurate daily-cloud statement without changing behavior | D-OM-05 | `README.md`, `forecastContract.js` comment | Committed documentation correction retains the daylight-bounded derivation | standards lane |
 
 ---
@@ -290,16 +277,17 @@ judgment call.
 |---|---|---|---|
 | **D-OM-01** | Does an unsupported variable return null arrays or hard-fail the whole request? | T-OM-02 scope; T-OM-20 architecture | Ratified from T-OM-00's measured results table |
 | **D-OM-02** | Single request vs. core + conditional request partition | T-OM-20 | Decision record naming the partition, the conditional route (if any), its cache policy, and its independent-failure behavior. **Standing recommendation: core + conditional regardless of D-OM-01**, so that severe-weather fields cannot take down the request that renders the current temperature |
-| **D-OM-03** | `outdoor-plan-decision.md` resolves daylight **hour** windows. `outdoorPlan.js:localHourNumber()` rejects any timestamp with `minute !== 0` by design. Sub-hourly Outdoor-plan windows contradict locked authority | T-OM-30–33 (all of Phase 4) | An amended Outdoor-plan decision record superseding the hourly-window resolution, with an explicit sub-hourly presentation and mixed-resolution rule |
 | **D-OM-05** | `README.md` states *"Open-Meteo has no daily cloud variable."* `mean_cloud_cover` / `maximum_cloud_cover` / `minimum_cloud_cover` now exist. The **reasoning remains correct** — the client-side mean is daylight-bounded and the provider's is 24-hour — but the stated fact is wrong | Documentation accuracy only | Correct the claim to "no daylight-restricted daily cloud variable" in `README.md` and `forecastContract.js`. **Do not** substitute the provider variable |
 | **D-OM-06** | `api-and-product-brainstorm.md` names snow depth, not a wet-bulb cutoff, snow-line calculation, or user-facing winter copy. Those are product decisions, not a formatter choice | T-OM-11 | Decision record defines whether wet-bulb discrimination is in scope, its exact boundary and mixed/unknown state, the snow-line calculation, and bounded copy relative to payload elevation |
-| **D-OM-07** | The brainstorm permits a visibility/fog narrative but names no fog threshold, hysteresis, precedence with WMO fog codes, or unavailable state | T-OM-12 | Decision record states the exact threshold(s), code/visibility precedence, unavailable state, and product copy. The `300 m` fixture becomes valid only if ratified there |
-| **D-OM-08** | Measured amounts are authoritative, but no authority selects the fallback when all three components are zero while precipitation probability/code indicates an event | T-OM-10 | Decision record defines the zero-amount fallback, mixed precipitation representation, and unavailable state; it may choose no fallback |
-| **D-OM-09** | The brainstorm identifies dewpoint but does not authorize a daily probability aggregate to change `summariseDay` copy or define the spike-versus-sustained rule | T-OM-14 | Decision record defines which daily aggregates surface, the exact copy/threshold rule, and the unavailable state |
 
-D-OM-03 was not visible until the existing Outdoor-plan code was read against a
-sub-hourly time axis. Phase 4 is **not** a field addition; it is a time-axis
-change to a feature that is already at locked v1.
+### Ratified decisions — 2026-08-12
+
+| ID | Decision | Implementation consequence |
+|---|---|---|
+| **D-OM-03** | Outdoor-plan windows are never smaller than one hour. | T-OM-30–33 and Phase 4 are removed from Tier 1. No `minutely_15` request, normalized 15-minute series, or sub-hourly window surface is authorized. |
+| **D-OM-07** | Use `Fog` / `Rime fog` only for WMO 45 / 48. At ≤400 m, qualify the applicable fog label as `Dense`; otherwise low visibility is `Reduced visibility`, never inferred fog or mist. | T-OM-12 validates code-first terminology, the 400 m dense qualifier, unit rendering, and explicit unavailable state. |
+| **D-OM-08** | Amounts are authoritative. When all three are exactly zero but WMO code or 40%+ probability signals precipitation, show `Possible {WMO type}` if known, otherwise `Precipitation possible`; unavailable amount is not zero. | T-OM-10 retains amount-first type classification and adds only the qualified fallback. |
+| **D-OM-09** | A corroborated 40%+ chance is `likely`; a 40%+ daily mean is `likely much of the day`; otherwise complete same-daypart hourly evidence qualifies it with morning, afternoon, evening, or overnight, and cross-daypart evidence is `likely at times`. Missing hourly evidence remains `likely`. | T-OM-14 uses daily mean for duration language and existing complete hourly evidence for a daypart. |
 
 ---
 
@@ -311,11 +299,10 @@ change to a feature that is already at locked v1.
 | SC-OM-SEAMS | [`test-selection` §Required](/Users/jared/.codex/skills/test-selection/SKILL.md#required-per-project-seam-declaration) | `README.md` L0 seam section | Names concrete entry points and consumer-visible artifacts | **Not implemented** until the README section is committed; later test tasks remain blocked | standards lane | Reviewer can classify every task test against a named L0/L1/L2 seam |
 | SC-OM-CONTRACT | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor) | `src/lib/forecastContract.js`; `src/lib/api.js`; `scripts/forecast-contract-test.mjs` | Each approved provider field maps to one normalized key with `null` for omitted payload values | **Fail-closed**: omitted values remain `null`; no synthetic default | contract lane | URL goldens and normalized-payload fixture pass |
 | SC-OM-UNITS | [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect) | `src/lib/format.js` length/height formatter | Accepts provider metres and active unit preset; returns labelled display text or unavailable marker | **Fail-closed**: non-finite input renders unavailable, never raw metres | units lane | `node scripts/format-test.mjs` passes |
-| SC-OM-PRECIP-TYPE | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-08** | `src/lib/precipType.js` | Produces a measured precipitation-type state or explicit unavailable state | **Blocked** until D-OM-08 defines the zero-amount fallback | precip-type lane | `node scripts/precip-type-test.mjs` passes |
+| SC-OM-PRECIP-TYPE | [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12) | `src/lib/precipType.js` | Produces an amount-first precipitation type, qualified WMO fallback, or explicit unavailable state | **Fail-closed**: unavailable amount never becomes zero | precip-type lane | `node scripts/precip-type-test.mjs` passes |
 | SC-OM-WINTER | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-06** | `src/lib/winterConditions.js` | Produces only ratified winter evidence/copy from normalized inputs | **Blocked** until D-OM-06 defines the product rule | badges lane | `node scripts/winter-conditions-test.mjs` passes |
-| SC-OM-VISIBILITY | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-07** | `src/lib/visibility.js` | Produces only a ratified fog state from visibility and code | **Blocked** until D-OM-07 defines thresholds and precedence | badges lane | `node scripts/visibility-test.mjs` passes |
+| SC-OM-VISIBILITY | [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12) | `src/lib/visibility.js` | Produces WMO-named fog/rime-fog, a dense qualifier, reduced visibility, or explicit unavailable | **Fail-closed**: visibility alone never becomes fog or mist | badges lane | `node scripts/visibility-test.mjs` passes |
 | SC-OM-CONVECTIVE | [`severe-desk-waved-roadmap.md` §Task breakdown](./severe-desk-waved-roadmap.md#task-breakdown-and-coder-handoffs); **D-OM-02** | `src/lib/severeDesk/convectiveIngredients.js` | Pair CAPE/CIN ingredients without presenting an observation or probability | **Blocked** until the conditional-request decision and named Severe Desk Wave approval exist | convective lane | Named fixture command plus rendered Severe Desk proof pass |
-| SC-OM-SUBHOURLY | [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03** | `src/lib/api.js` `quarterHours`; `outdoorPlan.js` | Keeps hourly and 15-minute evidence separate and preserves resolution in the Outdoor-plan state | **Blocked** until authority is ratified | subhourly lane | Task-specific coverage, normalization, Outdoor-plan, and browser gates pass |
 
 ---
 
@@ -425,25 +412,28 @@ change to a feature that is already at locked v1.
 
 - System node: CAP-OM-PRECIP-TYPE
 - Phase / wave: Phase 2 / Wave B
-- Hard prerequisites: FND-OM-CONTRACT, **D-OM-08**
+- Hard prerequisites: FND-OM-CONTRACT
 - Provides / consumes: provides hourly precipitation type from measured
   amounts; consumes normalized hourly `rain` / `showers` / `snowfall`
 - Rationale: `current` already requests all three components; hourly does not,
   so hourly type is inferred from `weather_code` — the exact inference
   `daySummary.js` was written to distrust at daily altitude. The distrust
   applies identically at hourly altitude
-- Fallback rule: selected only by D-OM-08; until then, the zero-amount/code
-  combination remains an explicit blocked product rule
+- Fallback rule: if all measured components are exactly zero but the WMO code
+  or a 40%+ probability signals precipitation, return `Possible {WMO type}`
+  when the code supplies a type, otherwise `Precipitation possible`. A missing
+  component remains unavailable and never enters this fallback.
 - Closure gate: `node scripts/precip-type-test.mjs` proves an hour with
-  `snowfall > 0`, `rain = 0`, `weather_code: 63` classifies as snow, and that a
-  rain→snow transition inside one event is preserved rather than flattened
-- Authority refs: [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`README.md` §Daily conditions](../README.md#daily-conditions-are-derived-not-reported); **D-OM-08**
+  `snowfall > 0`, `rain = 0`, `weather_code: 63` classifies as snow; a zero-
+  amount WMO rain case is `Possible rain`; and a rain→snow transition inside
+  one event is preserved rather than flattened
+- Authority refs: [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12); [`README.md` §Daily conditions](../README.md#daily-conditions-are-derived-not-reported)
 - Allowed write scope: `src/lib/precipType.js`, `src/lib/precipEvent.js`,
   `src/components/HourlyStrip.jsx`, `scripts/precip-type-test.mjs`
 - Acceptance evidence: the contradicting-code case and the transition case
 - Test posture: **L0.** Seam: the derived product object. Mutation caught:
   reverting to `weather_code` inference.
-- Coder rule: implement only cited measured-split behavior and D-OM-08's selected fallback; any uncited confidence heuristic is a blocker requiring authority.
+- Coder rule: implement only cited measured-split behavior and the ratified fallback; any uncited confidence heuristic is a blocker requiring authority.
 
 ### T-OM-11 — winter conditions
 
@@ -466,22 +456,24 @@ change to a feature that is already at locked v1.
 
 - System node: CAP-OM-VISIBILITY
 - Phase / wave: Phase 2 / Wave B
-- Hard prerequisites: FND-OM-CONTRACT, FND-OM-UNITS, **D-OM-07**
-- Provides / consumes: provides a ratified threshold-based fog state; consumes
-  normalized hourly `visibility`
+- Hard prerequisites: FND-OM-CONTRACT, FND-OM-UNITS
+- Provides / consumes: provides WMO-named fog/rime-fog, dense qualifier, or
+  reduced-visibility state; consumes normalized hourly `visibility` and code
 - Rationale: `skyTheme()` already returns `'fog'` with a palette behind it,
-  driven only by codes 45/48. Visibility converts a categorical guess into a
-  measured threshold
-- Closure gate: `node scripts/visibility-test.mjs` proves D-OM-07's
-  no-fog-code, precedence, unavailable, and unit-rendering cases
-- Authority refs: [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-07**
+  driven by codes 45/48. Preserve that meteorological identity; visibility
+  qualifies density but never infers fog.
+- Closure gate: `node scripts/visibility-test.mjs` proves a ≤400 m WMO fog case
+  is dense fog, the no-fog-code equivalent is reduced visibility, and
+  unavailable/unit-rendering cases are explicit
+- Authority refs: [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12)
 - Allowed write scope: `src/lib/visibility.js`,
   `src/components/ConditionBadges.jsx`, `src/lib/dayExplanation.js`,
   `scripts/visibility-test.mjs`
-- Acceptance evidence: D-OM-07's no-fog-code/precedence cases and both unit cases
-- Test posture: **L0.** Mutation caught: continuing to derive fog from the code
-  alone.
-- Coder rule: implement only cited D-OM-07 threshold/precedence; any uncited fog threshold or copy is a blocker requiring authority.
+- Acceptance evidence: dense-fog, reduced-visibility, unavailable, and both
+  unit cases
+- Test posture: **L0.** Mutation caught: inferring fog from visibility alone,
+  or omitting the dense qualifier.
+- Coder rule: implement only cited WMO terminology and 400 m qualifier; any uncited fog or visibility copy is an authority blocker.
 
 ### T-OM-13 — cloud layers
 
@@ -506,22 +498,25 @@ change to a feature that is already at locked v1.
 
 - System node: CAP-OM-DAILY-AGGREGATES
 - Phase / wave: Phase 2 / Wave B
-- Hard prerequisites: FND-OM-CONTRACT, **D-OM-09**
-- Provides / consumes: provides the daily aggregates ratified by D-OM-09; consumes
-  the normalized daily aggregates
+- Hard prerequisites: FND-OM-CONTRACT, T-OM-13
+- Provides / consumes: provides the ratified daily aggregate and local-daypart
+  copy; consumes normalized daily aggregates and complete existing hourly evidence
 - Rationale: `precipitation_probability_max` is the only daily probability
   carried today, so a day peaking at 60 % for one hour and a day sitting at
   55 % all afternoon read identically. Hourly dewpoint is fetched and then
   discarded at day level even though the hourly strip now presents it directly
-- Closure gate: `node scripts/daily-aggregates-test.mjs` proves D-OM-09's
-  spike-versus-sustained behavior
-- Authority refs: [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`daySummary.js`](../src/lib/daySummary.js#L1); **D-OM-09**
+- Closure gate: `node scripts/daily-aggregates-test.mjs` proves a corroborated,
+  40%+ daily mean renders `likely much of the day`; a single-daypart chance
+  renders `likely in the afternoon`; cross-daypart evidence renders `likely at
+  times`; and incomplete evidence remains `likely`
+- Authority refs: [`api-and-product-brainstorm.md` §10.3](./api-and-product-brainstorm.md#103-tier-1-forecast-language-decisions--locked-2026-08-12); [`daySummary.js`](../src/lib/daySummary.js#L1)
 - Allowed write scope: `src/lib/daySummary.js`, `src/components/DayRow.jsx`,
   `scripts/daily-aggregates-test.mjs`
-- Acceptance evidence: the D-OM-09 spike-versus-sustained and unavailable cases
-- Test posture: **L0.** Mutation caught: continuing to describe both days from
-  the max alone.
-- Coder rule: implement only cited D-OM-09 aggregate/copy behavior; an uncited threshold or replacement of existing corroboration is a blocker requiring authority.
+- Acceptance evidence: the high-mean, same-daypart, cross-daypart, and
+  unavailable cases
+- Test posture: **L0.** Mutation caught: assigning a daypart from partial
+  evidence, ignoring the mean, or replacing existing corroboration.
+- Coder rule: implement only cited aggregate/copy behavior; an uncited threshold or replacement of existing corroboration is an authority blocker.
 
 ### T-OM-20 — convective ingredients — **BLOCKED**
 
@@ -553,68 +548,6 @@ change to a feature that is already at locked v1.
   likely mutation to ship.
 - Coder rule: implement only cited behavior after D-OM-02 and the named Severe Desk Wave are approved; every uncited field, threshold, proxy behavior, or surface path is a blocker requiring authority.
 
-### T-OM-30 — sub-hourly coverage and conditional contract — **BLOCKED**
-
-- System node: CAP-OM-SUBHOURLY-EVIDENCE
-- Phase / wave: Phase 4 / Wave D
-- Hard prerequisites: FND-OM-CONTRACT, **D-OM-03**
-- Provides / consumes: provides a ratified native-coverage predicate and a
-  conditional request contract; consumes location and the forecast contract
-- Closure gate: `node scripts/subhourly-coverage-test.mjs` proves an
-  out-of-coverage location causes no `minutely_15` upstream request and
-  reports hourly resolution
-- Authority refs: [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`api-and-product-brainstorm.md` §10.1](./api-and-product-brainstorm.md#101-air-quality--locked-scale-and-scope); **D-OM-03**
-- Allowed write scope: coverage predicate, conditional forecast contract/proxy
-  authorized by D-OM-03, `scripts/subhourly-coverage-test.mjs`
-- Acceptance evidence: committed coverage fixture covers native and
-  out-of-coverage locations, including the absence of an upstream request
-- Coder rule: implement only cited native-coverage behavior after D-OM-03; any uncited region, model, request, or fallback is a blocker requiring authority.
-
-### T-OM-31 — normalize parallel sub-hourly evidence — **BLOCKED**
-
-- System node: CAP-OM-SUBHOURLY-EVIDENCE
-- Phase / wave: Phase 4 / Wave D
-- Hard prerequisites: T-OM-30
-- Provides / consumes: provides a normalized 15-minute series alongside, never
-  instead of, hourly `hours`; consumes the approved conditional payload
-- Closure gate: `node scripts/subhourly-normalization-test.mjs` proves native
-  entries retain source timestamps and omitted fields remain `null`
-- Authority refs: [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03**
-- Allowed write scope: `src/lib/api.js`, `scripts/subhourly-normalization-test.mjs`
-- Acceptance evidence: committed native-coverage fixture proves `quarterHours`
-  exists beside unchanged hourly evidence and missing fields are explicit
-- Coder rule: implement only cited parallel-series contract after D-OM-03; replacement of hourly evidence or an uncited normalized value is a blocker requiring authority.
-
-### T-OM-32 — sub-hourly Outdoor-plan time axis — **BLOCKED**
-
-- System node: FEAT-OM-SUBHOURLY-WINDOWS
-- Phase / wave: Phase 4 / Wave D
-- Hard prerequisites: T-OM-31
-- Provides / consumes: provides a ratified sub-hourly Outdoor-plan derivation;
-  consumes parallel evidence
-- Closure gate: `node scripts/subhourly-window-test.mjs` proves dry
-  06:00–06:45 then wet 07:00 ends at 06:45
-- Authority refs: [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03**
-- Allowed write scope: `src/lib/outdoorPlan.js`, `scripts/subhourly-window-test.mjs`
-- Acceptance evidence: committed fixture proves the true dry-window boundary
-- Coder rule: implement only cited amended Outdoor-plan time axis; an uncited interpolation or time rule is a blocker requiring authority.
-
-### T-OM-33 — resolution-aware window surfaces — **BLOCKED**
-
-- System node: FEAT-OM-SUBHOURLY-WINDOWS
-- Phase / wave: Phase 4 / Wave D
-- Hard prerequisites: T-OM-32
-- Provides / consumes: presents native sub-hourly Outdoor-plan windows where
-  available and explicit hourly resolution elsewhere; consumes its derivation
-- Closure gate: `node scripts/subhourly-surface-test.mjs && npm run test:smoke`
-  proves visible resolution and the 06:45 boundary in native coverage
-- Authority refs: [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03**
-- Allowed write scope: the Outdoor-plan consumer component,
-  `scripts/subhourly-surface-test.mjs`, and focused fixtures
-- Acceptance evidence: rendered native and out-of-coverage fixtures show the
-  active resolution; hourly locations retain hourly Outdoor-plan windows
-- Coder rule: implement only cited resolution-aware presentation after amended authority; any uncited surface, wording, or resolution claim is a blocker requiring authority.
-
 ### D-OM-05 — correct daily-cloud documentation
 
 - System node: FND-OM-DOCUMENTATION-ACCURACY
@@ -643,22 +576,19 @@ A task moves to `ready` only when every hard prerequisite is `closed`.
 | **T-OM-01** seam declaration | FND-OM-SEAM-DECLARATION | 0 | standards | — | `ready` | committed `README.md` seam list |
 | **T-OM-02** contract | FND-OM-CONTRACT | 1 | contract | T-OM-00, T-OM-01 | `blocked` | `npm run test:contract` |
 | **T-OM-03** units | FND-OM-UNITS | 1 | units | T-OM-01 | `blocked` | `node scripts/format-test.mjs` |
-| **T-OM-10** precip type | CAP-OM-PRECIP-TYPE | 2 | precip-type | T-OM-02, **D-OM-08** | `blocked` | `node scripts/precip-type-test.mjs` |
+| **T-OM-10** precip type | CAP-OM-PRECIP-TYPE | 2 | precip-type | T-OM-02 | `blocked` | `node scripts/precip-type-test.mjs` |
 | **T-OM-11** winter | CAP-OM-WINTER | 2 | badges | T-OM-02, T-OM-03, **D-OM-06** | `blocked` | `node scripts/winter-conditions-test.mjs` |
-| **T-OM-12** visibility | CAP-OM-VISIBILITY | 2 | badges | T-OM-02, T-OM-03, T-OM-11, **D-OM-07** | `blocked` | `node scripts/visibility-test.mjs` |
+| **T-OM-12** visibility | CAP-OM-VISIBILITY | 2 | badges | T-OM-02, T-OM-03 | `blocked` | `node scripts/visibility-test.mjs` |
 | **T-OM-13** cloud layers | CAP-OM-SKY-LAYERS | 2 | summary | T-OM-02 | `blocked` | `node scripts/cloud-layers-test.mjs` |
-| **T-OM-14** daily aggregates | CAP-OM-DAILY-AGGREGATES | 2 | summary | T-OM-02, T-OM-13, **D-OM-09** | `blocked` | `node scripts/daily-aggregates-test.mjs` |
+| **T-OM-14** daily aggregates | CAP-OM-DAILY-AGGREGATES | 2 | summary | T-OM-02, T-OM-13 | `blocked` | `node scripts/daily-aggregates-test.mjs` |
 | **T-OM-20** convective | CAP-OM-CONVECTIVE | 3 | convective | T-OM-02, **D-OM-02**, severe-desk Wave approval | `blocked` | `node scripts/convective-ingredients-test.mjs && npm run test:smoke` |
-| **T-OM-30** coverage + contract | CAP-OM-SUBHOURLY-EVIDENCE | 4 | subhourly | **D-OM-03**, T-OM-02 | `blocked` | `node scripts/subhourly-coverage-test.mjs` |
-| **T-OM-31** sub-hourly normalize | CAP-OM-SUBHOURLY-EVIDENCE | 4 | subhourly | T-OM-30 | `blocked` | `node scripts/subhourly-normalization-test.mjs` |
-| **T-OM-32** Outdoor-plan time axis | FEAT-OM-SUBHOURLY-WINDOWS | 4 | subhourly | T-OM-31 | `blocked` | `node scripts/subhourly-window-test.mjs` |
-| **T-OM-33** window surfaces | FEAT-OM-SUBHOURLY-WINDOWS | 4 | subhourly | T-OM-32 | `blocked` | `node scripts/subhourly-surface-test.mjs && npm run test:smoke` |
 | **D-OM-05** README correction | FND-OM-DOCUMENTATION-ACCURACY | 0 | standards | — | `ready` | committed documentation correction |
 
 **Conceptually ready after explicit named-task approval: T-OM-00, T-OM-01,
-D-OM-05.** The remaining twelve tasks are correctly blocked by named provider,
-decision, or upstream-task gates. This is a dependency state, not a scheduling
-problem to route around.
+D-OM-05.** D-OM-03, D-OM-07, D-OM-08, and D-OM-09 are ratified; the remaining
+work is correctly blocked by named provider, winter-rule, Severe Desk, or
+upstream-task gates. This is a dependency state, not a scheduling problem to
+route around.
 
 ---
 
@@ -695,9 +625,10 @@ Tier 1 is closed when all of the following hold:
    CAPE at day 9 is noise regardless.
 7. **Suite green.** `npm test` passes end to end, including `build`, `smoke`,
    `contrast`, and `persistence`.
-8. **Blocked work still visibly blocked.** T-OM-20 and T-OM-30–33 remain
-   blocked, with D-OM-02 and D-OM-03 open and named. Tier 1 closure
-   does **not** silently absorb them.
+8. **Blocked work still visibly blocked.** T-OM-20 remains blocked, with
+   D-OM-02 and a named Severe Desk Wave approval open. Tier 1 closure does
+   **not** silently absorb it; D-OM-03 is closed by retaining one-hour
+   Outdoor-plan windows.
 
 ### Explicitly not a success criterion
 
@@ -737,5 +668,6 @@ gate above passes and success criteria 1–8 are demonstrably met.
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| 1.2 | 2026-08-12 | Jared locked one-hour Outdoor-plan resolution and the D-OM-07–09 forecast-language rules. Phase 4 and T-OM-30–33 were removed; visibility now uses WMO terminology without inferring fog from visibility. |
 | 1.1 | 2026-08-12 | Run Window removed from the product. Dew point is now visible beside hourly temperature; Phase 4 concerns only the Outdoor plan's locked hourly time axis. |
 | 1.0 | 2026-08-11 | Initial decomposition. |

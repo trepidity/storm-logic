@@ -346,7 +346,24 @@ about unavailable data without creating a second navigation job.
    provider, and suppresses itself when daylight precipitation evidence is
    incomplete. See `docs/outdoor-plan-decision.md`.
 
-### 10.3 Explicitly deferred (still valid later, not next)
+### 10.3 Tier 1 forecast-language decisions — locked 2026-08-12
+
+| Decision | Rule |
+| --- | --- |
+| **Outdoor-plan resolution** (`D-OM-03`) | Outdoor-plan windows are never smaller than one hour. `minutely_15` evidence and sub-hourly Outdoor-plan work are out of Tier 1. |
+| **Visibility terminology** (`D-OM-07`) | Use standard weather terminology only when the WMO weather code supplies the phenomenon: `Fog` for WMO 45 and `Rime fog` for WMO 48. Qualify a fog-code hour at 400 m / one-quarter mile or less as `Dense fog` (or `Dense rime fog`). Low visibility without a fog code is `Reduced visibility`, never inferred fog or mist. Include the unit-formatted visibility with every label; absent visibility remains unavailable. |
+| **Zero-amount precipitation fallback** (`D-OM-08`) | Measured rain, showers, and snowfall remain authoritative when any is above zero. If all are exactly zero but the WMO code or a 40%+ probability signals precipitation, show qualified, useful copy: `Possible {WMO precipitation type}` when the code has a type, otherwise `Precipitation possible`. Do not convert an unavailable amount into zero, and do not assert a type from probability alone. |
+| **Daily precipitation language** (`D-OM-09`) | Keep the current corroboration rule. At a corroborated 40%+ chance, say `likely`. With complete hourly evidence, say `likely much of the day` when the daily mean is 40%+; otherwise, if all credible hourly signals fall in one local daypart, qualify it as `likely in the morning` (05:00–11:59), `likely in the afternoon` (12:00–17:59), `likely in the evening` (18:00–22:59), or `likely overnight` (23:00–04:59). Cross-daypart evidence is `likely at times`; incomplete hourly evidence remains `likely`. |
+
+These rules describe forecast evidence, not observations, advisories, safety
+advice, or promises.
+
+Visibility terminology follows the [WMO fog/mist definition](https://cloudatlas.wmo.int/fog-compared-with-mist.html):
+visibility by itself does not establish the hydrometeor. The dense qualifier
+uses the U.S. National Weather Service [one-quarter-mile dense-fog benchmark](https://www.weather.gov/media/directives/010_pdfs_archived/pd01005015g.pdf),
+but is a product description, not a forecast advisory.
+
+### 10.4 Explicitly deferred (still valid later, not next)
 
 - Commute helper, vs-normal historical, NWS AFD, drag-reorder places, and
   richer icons — see §6–§8. The first outdoor-event helper is complete; later
@@ -377,3 +394,4 @@ about unavailable data without creating a second navigation job.
 | 1.7 | 2026-08-10 | Severe-desk Wave 0 provider contracts ratified (binding sources/time/load) |
 | 1.8 | 2026-08-10 | Severe-desk Wave 0 restated: sources accepted, contract fixtures pending and gating Waves C–D |
 | 1.9 | 2026-08-11 | Severe-desk Waves 0–D locally verified; IEM `valid=` correction, 46 fixtures, mutation proof, and live-event validation boundary recorded |
+| 2.0 | 2026-08-12 | Jared locked Tier 1 Outdoor-plan resolution and forecast-language rules for visibility, zero-amount precipitation, and daily precipitation timing. |
