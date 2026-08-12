@@ -52,11 +52,8 @@ before dispatch (see [Decision gaps and blockers](#decision-gaps-and-blockers)).
   the most *severe* code of the period, not a representative one.
 - [`severe-desk-waved-roadmap.md`](./severe-desk-waved-roadmap.md) — governs any
   change to Severe Desk surfaces. Constrains T-OM-20.
-- [`run-window-v1-implementation-spec.md`](./run-window-v1-implementation-spec.md)
-  and [`run-window-decision.md`](./run-window-decision.md) §§4, 9 — v1 resolved
-  hourly starts. Constrains T-OM-30–33.
 - [`outdoor-plan-decision.md`](./outdoor-plan-decision.md) — longest dry
-  *daylight hour* window. Constrains T-OM-32.
+  *daylight hour* window. Constrains T-OM-30–33.
 - Current implementation: `src/lib/forecastContract.js`, `src/lib/api.js`,
   `src/lib/format.js`, `scripts/forecast-contract-test.mjs`.
 
@@ -133,7 +130,7 @@ separate product and authority decisions exist.
 | Deferred idea | The eventual user value | Why it is not being built now |
 |---|---|---|
 | **Convective ingredients in Severe Desk** | A severe-weather panel could show model ingredients such as instability and inhibition beside official severe-weather context. | It needs a separate conditional-request design and an explicitly approved Severe Desk Wave. It must never be presented as a hail probability, observation, or storm guarantee. |
-| **Native 15-minute precipitation and finer windows** | In supported areas, the Outdoor plan and Run windows could end at a true 15-minute boundary instead of the nearest hour. | It changes the locked hourly time model for two existing decision helpers, and the 15-minute feed omits factors those helpers currently require. |
+| **Native 15-minute precipitation and finer Outdoor-plan windows** | In supported areas, the Outdoor plan could end at a true 15-minute boundary instead of the nearest hour. | It changes the Outdoor plan's locked hourly time model. |
 
 ### The one-sentence product promise
 
@@ -159,9 +156,9 @@ or severe-weather claims.**
 | CAP-OM-SKY-LAYERS | Capability | [`api-and-product-brainstorm.md` §2](./api-and-product-brainstorm.md#2-product-traits-to-protect); [`CloudMeter.jsx`](../src/components/CloudMeter.jsx#L1) | Phase 2 | B | Low/mid/high cloud distribution per hour and per day | Normalized layered cloud cover | FND-OM-CONTRACT | Two days at identical total cloud cover but inverted layer distribution do not produce the same description |
 | CAP-OM-DAILY-AGGREGATES | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`daySummary.js`](../src/lib/daySummary.js#L1) | Phase 2 | B | Approved daily dewpoint/probability evidence presentation | Normalized daily aggregates | FND-OM-CONTRACT, **D-OM-09** | The ratified copy rule distinguishes a brief probability spike from a sustained equal-mean probability |
 | CAP-OM-CONVECTIVE | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`README.md` §Hail caveat](../README.md#the-hail-caveat) | Phase 3 | C | CAPE, lifted index, CIN, and daily max updraft as *ingredients* | Conditional forecast request | FND-OM-CONTRACT; **D-OM-02**; severe-desk Wave approval | High CAPE under strong CIN produces no storm signal; no ingredient is presented as a hail amount, probability, or observation |
-| FND-OM-SUBHOURLY-AUTHORITY | Foundation | [`run-window-decision.md` §4.3](./run-window-decision.md#43-hourly-resolution-is-not-interpolated); [`run-window-decision.md` §9](./run-window-decision.md#9-v1-implementation-decisions); [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary) | Phase 4 | D | Amended authority permitting sub-hourly start granularity | Run-window and outdoor-plan decision records | **D-OM-03** | An amended decision record supersedes the locked hourly-start and hourly-window resolutions and states the sub-hourly presentation rule |
+| FND-OM-SUBHOURLY-AUTHORITY | Foundation | [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary) | Phase 4 | D | Amended authority permitting sub-hourly Outdoor-plan boundaries | Outdoor-plan decision record | **D-OM-03** | An amended Outdoor-plan decision record supersedes the locked hourly-window resolution and states the sub-hourly presentation rule |
 | CAP-OM-SUBHOURLY-EVIDENCE | Capability | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`api-and-product-brainstorm.md` §10.1](./api-and-product-brainstorm.md#101-air-quality--locked-scale-and-scope) | Phase 4 | D | A native 15-minute series where natively available, and an explicit hourly-resolution state elsewhere | `minutely_15` block; coverage predicate | FND-OM-SUBHOURLY-AUTHORITY, FND-OM-CONTRACT | Outside native coverage no `minutely_15` request is issued and the surface reports hourly resolution; interpolated data is never presented as observed sub-hourly detail |
-| FEAT-OM-SUBHOURLY-WINDOWS | Feature | [`run-window-decision.md` §8](./run-window-decision.md#8-non-goals); [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary) | Phase 4 | D | Run and outdoor windows at native resolution where available | Sub-hourly evidence; existing window derivations | CAP-OM-SUBHOURLY-EVIDENCE | A window boundary falling mid-hour is reported at its true sub-hourly edge; the resolution in use is visible; out-of-coverage locations still produce hourly windows |
+| FEAT-OM-SUBHOURLY-WINDOWS | Feature | [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary) | Phase 4 | D | Outdoor-plan windows at native resolution where available | Sub-hourly evidence; Outdoor-plan derivation | CAP-OM-SUBHOURLY-EVIDENCE | A dry-window boundary falling mid-hour is reported at its true sub-hourly edge; the resolution in use is visible; out-of-coverage locations retain hourly Outdoor-plan windows |
 
 Hard prerequisites override desired delivery order. Phase 3 and Phase 4 nodes
 are **not dispatchable** until their named decision gaps close, regardless of
@@ -197,7 +194,7 @@ overlap.
 | **badges lane** | T-OM-11, then T-OM-12 | `winterConditions.js` / `visibility.js`, shared `ConditionBadges.jsx` | **T-OM-11 ↔ T-OM-12** — serial |
 | **summary lane** | T-OM-13, then T-OM-14 | shared `daySummary.js`, plus `CloudMeter.jsx` / `DayRow.jsx` and task-specific scripts | **T-OM-13 ↔ T-OM-14** — serial |
 | **convective lane** | T-OM-20 | `severeDesk/convectiveIngredients.js`, conditional proxy | contract lane |
-| **subhourly lane** | T-OM-30–33 | `runWindows.js`, `outdoorPlan.js`, their tests | contract lane |
+| **subhourly lane** | T-OM-30–33 | `outdoorPlan.js` and its focused tests | contract lane |
 
 ### Concurrency schedule
 
@@ -248,9 +245,9 @@ rather than a tautology.
 | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-09** | Ratified daily probability evidence distinguishes a spike from a sustained chance | T-OM-14 | `daySummary.js` | The decision record's spike-versus-sustained fixture passes | summary lane |
 | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`README.md` §Hail caveat](../README.md#the-hail-caveat) | Ingredients are ingredients; CIN suppresses the signal | T-OM-20 | `severeDesk/convectiveIngredients.js` | A named focused fixture command proves CAPE/CIN suppression | convective lane |
 | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`api-and-product-brainstorm.md` §10.1](./api-and-product-brainstorm.md#101-air-quality--locked-scale-and-scope) | Native sub-hourly only; interpolation is never sold as observation | T-OM-30 | coverage predicate → proxy contract | A coverage fixture proves no out-of-coverage request | subhourly lane |
-| [`run-window-decision.md` §4.3](./run-window-decision.md#43-hourly-resolution-is-not-interpolated); **D-OM-03** | Normalize native 15-minute evidence alongside hourly evidence | T-OM-31 | `api.js` normalized `quarterHours` | A fixture proves source timestamps and explicit nulls | subhourly lane |
-| [`run-window-decision.md` §4.3](./run-window-decision.md#43-hourly-resolution-is-not-interpolated); **D-OM-03**, **D-OM-04** | Derive native-resolution windows only after authority is amended | T-OM-32 | `quarterHours` → `runWindows`, `outdoorPlan` | Fixture proves the 06:45 boundary and the null-factor policy | subhourly lane |
-| [`run-window-decision.md` §9](./run-window-decision.md#9-v1-implementation-decisions); **D-OM-03**, **D-OM-04** | Display native or hourly resolution honestly | T-OM-33 | window derivations → named consumer surfaces | Browser fixture proves visible resolution and the true boundary | subhourly lane |
+| [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03** | Normalize native 15-minute evidence alongside hourly evidence | T-OM-31 | `api.js` normalized `quarterHours` | A fixture proves source timestamps and explicit nulls | subhourly lane |
+| [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03** | Derive a native-resolution dry window only after authority is amended | T-OM-32 | `quarterHours` → `outdoorPlan` | Fixture proves the 06:45 boundary | subhourly lane |
+| [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03** | Display native or hourly Outdoor-plan resolution honestly | T-OM-33 | Outdoor-plan derivation → consumer surface | Browser fixture proves visible resolution and the true boundary | subhourly lane |
 | [`README.md` §What it shows](../README.md#what-it-shows) | Correct the inaccurate daily-cloud statement without changing behavior | D-OM-05 | `README.md`, `forecastContract.js` comment | Committed documentation correction retains the daylight-bounded derivation | standards lane |
 
 ---
@@ -293,17 +290,16 @@ judgment call.
 |---|---|---|---|
 | **D-OM-01** | Does an unsupported variable return null arrays or hard-fail the whole request? | T-OM-02 scope; T-OM-20 architecture | Ratified from T-OM-00's measured results table |
 | **D-OM-02** | Single request vs. core + conditional request partition | T-OM-20 | Decision record naming the partition, the conditional route (if any), its cache policy, and its independent-failure behavior. **Standing recommendation: core + conditional regardless of D-OM-01**, so that severe-weather fields cannot take down the request that renders the current temperature |
-| **D-OM-03** | `run-window-decision.md` §9 resolved **hourly** starts; `outdoor-plan-decision.md` resolved daylight **hour** windows. `outdoorPlan.js:localHourNumber()` rejects any timestamp with `minute !== 0` by design. Sub-hourly windows contradict locked authority | T-OM-30–33 (all of Phase 4) | An amended run-window and outdoor-plan decision record superseding the hourly-start resolution, with an explicit sub-hourly presentation and mixed-resolution rule |
-| **D-OM-04** | `runWindows.js:factorsFor()` is an all-or-nothing gate: any null factor drops the hour. The 15-minute series carries no `dew_point_2m`, `uv_index`, or `weather_code`, so a naive swap silently zeroes every run window | T-OM-30–33 | An explicit null-tolerance policy: which factors are required at sub-hourly resolution, which degrade, and what the user is told |
+| **D-OM-03** | `outdoor-plan-decision.md` resolves daylight **hour** windows. `outdoorPlan.js:localHourNumber()` rejects any timestamp with `minute !== 0` by design. Sub-hourly Outdoor-plan windows contradict locked authority | T-OM-30–33 (all of Phase 4) | An amended Outdoor-plan decision record superseding the hourly-window resolution, with an explicit sub-hourly presentation and mixed-resolution rule |
 | **D-OM-05** | `README.md` states *"Open-Meteo has no daily cloud variable."* `mean_cloud_cover` / `maximum_cloud_cover` / `minimum_cloud_cover` now exist. The **reasoning remains correct** — the client-side mean is daylight-bounded and the provider's is 24-hour — but the stated fact is wrong | Documentation accuracy only | Correct the claim to "no daylight-restricted daily cloud variable" in `README.md` and `forecastContract.js`. **Do not** substitute the provider variable |
 | **D-OM-06** | `api-and-product-brainstorm.md` names snow depth, not a wet-bulb cutoff, snow-line calculation, or user-facing winter copy. Those are product decisions, not a formatter choice | T-OM-11 | Decision record defines whether wet-bulb discrimination is in scope, its exact boundary and mixed/unknown state, the snow-line calculation, and bounded copy relative to payload elevation |
 | **D-OM-07** | The brainstorm permits a visibility/fog narrative but names no fog threshold, hysteresis, precedence with WMO fog codes, or unavailable state | T-OM-12 | Decision record states the exact threshold(s), code/visibility precedence, unavailable state, and product copy. The `300 m` fixture becomes valid only if ratified there |
 | **D-OM-08** | Measured amounts are authoritative, but no authority selects the fallback when all three components are zero while precipitation probability/code indicates an event | T-OM-10 | Decision record defines the zero-amount fallback, mixed precipitation representation, and unavailable state; it may choose no fallback |
 | **D-OM-09** | The brainstorm identifies dewpoint but does not authorize a daily probability aggregate to change `summariseDay` copy or define the spike-versus-sustained rule | T-OM-14 | Decision record defines which daily aggregates surface, the exact copy/threshold rule, and the unavailable state |
 
-D-OM-03 and D-OM-04 were not visible until the existing window code was read
-against a sub-hourly time axis. Phase 4 is **not** a field addition; it is a
-time-axis change to two features that are already at locked v1.
+D-OM-03 was not visible until the existing Outdoor-plan code was read against a
+sub-hourly time axis. Phase 4 is **not** a field addition; it is a time-axis
+change to a feature that is already at locked v1.
 
 ---
 
@@ -319,7 +315,7 @@ time-axis change to two features that are already at locked v1.
 | SC-OM-WINTER | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-06** | `src/lib/winterConditions.js` | Produces only ratified winter evidence/copy from normalized inputs | **Blocked** until D-OM-06 defines the product rule | badges lane | `node scripts/winter-conditions-test.mjs` passes |
 | SC-OM-VISIBILITY | [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); **D-OM-07** | `src/lib/visibility.js` | Produces only a ratified fog state from visibility and code | **Blocked** until D-OM-07 defines thresholds and precedence | badges lane | `node scripts/visibility-test.mjs` passes |
 | SC-OM-CONVECTIVE | [`severe-desk-waved-roadmap.md` §Task breakdown](./severe-desk-waved-roadmap.md#task-breakdown-and-coder-handoffs); **D-OM-02** | `src/lib/severeDesk/convectiveIngredients.js` | Pair CAPE/CIN ingredients without presenting an observation or probability | **Blocked** until the conditional-request decision and named Severe Desk Wave approval exist | convective lane | Named fixture command plus rendered Severe Desk proof pass |
-| SC-OM-SUBHOURLY | [`run-window-decision.md` §9](./run-window-decision.md#9-v1-implementation-decisions); **D-OM-03**, **D-OM-04** | `src/lib/api.js` `quarterHours`; `runWindows.js`; `outdoorPlan.js` | Keeps hourly and 15-minute evidence separate and preserves resolution in the consumer state | **Blocked** until authority and null-tolerance policy are ratified | subhourly lane | Task-specific coverage, normalization, window, and browser gates pass |
+| SC-OM-SUBHOURLY | [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03** | `src/lib/api.js` `quarterHours`; `outdoorPlan.js` | Keeps hourly and 15-minute evidence separate and preserves resolution in the Outdoor-plan state | **Blocked** until authority is ratified | subhourly lane | Task-specific coverage, normalization, Outdoor-plan, and browser gates pass |
 
 ---
 
@@ -358,7 +354,7 @@ time-axis change to two features that are already at locked v1.
 - Proposed seam list (for ratification): the issued upstream URL; the Netlify
   function HTTP response; the normalized forecast object from `api.js`; the
   derived product objects (`summariseDay`, `deriveOutdoorPlan`,
-  `deriveRunWindows`, `derivePrecipEvent`, `derivePrecipTiming`); the rendered
+  `derivePrecipEvent`, `derivePrecipTiming`); the rendered
   DOM via the Playwright smoke test
 - Acceptance evidence: a reviewer can classify any existing test as at, above,
   or below a named seam
@@ -516,7 +512,7 @@ time-axis change to two features that are already at locked v1.
 - Rationale: `precipitation_probability_max` is the only daily probability
   carried today, so a day peaking at 60 % for one hour and a day sitting at
   55 % all afternoon read identically. Hourly dewpoint is fetched and then
-  discarded at day level while `runWindows` reasons in dewpoint tiers
+  discarded at day level even though the hourly strip now presents it directly
 - Closure gate: `node scripts/daily-aggregates-test.mjs` proves D-OM-09's
   spike-versus-sustained behavior
 - Authority refs: [`api-and-product-brainstorm.md` §3.1](./api-and-product-brainstorm.md#31-open-meteo-highest-leverage-no-new-vendor); [`daySummary.js`](../src/lib/daySummary.js#L1); **D-OM-09**
@@ -583,43 +579,40 @@ time-axis change to two features that are already at locked v1.
   instead of, hourly `hours`; consumes the approved conditional payload
 - Closure gate: `node scripts/subhourly-normalization-test.mjs` proves native
   entries retain source timestamps and omitted fields remain `null`
-- Authority refs: [`run-window-decision.md` §4.3](./run-window-decision.md#43-hourly-resolution-is-not-interpolated); **D-OM-03**
+- Authority refs: [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03**
 - Allowed write scope: `src/lib/api.js`, `scripts/subhourly-normalization-test.mjs`
 - Acceptance evidence: committed native-coverage fixture proves `quarterHours`
   exists beside unchanged hourly evidence and missing fields are explicit
 - Coder rule: implement only cited parallel-series contract after D-OM-03; replacement of hourly evidence or an uncited normalized value is a blocker requiring authority.
 
-### T-OM-32 — sub-hourly window time axis — **BLOCKED**
+### T-OM-32 — sub-hourly Outdoor-plan time axis — **BLOCKED**
 
 - System node: FEAT-OM-SUBHOURLY-WINDOWS
 - Phase / wave: Phase 4 / Wave D
-- Hard prerequisites: T-OM-31, **D-OM-04**
-- Provides / consumes: provides ratified sub-hourly window derivations;
-  consumes parallel evidence and D-OM-04's factor policy
+- Hard prerequisites: T-OM-31
+- Provides / consumes: provides a ratified sub-hourly Outdoor-plan derivation;
+  consumes parallel evidence
 - Closure gate: `node scripts/subhourly-window-test.mjs` proves dry
-  06:00–06:45 then wet 07:00 ends at 06:45, and D-OM-04's missing-factor state
-  cannot fabricate a run window
-- Authority refs: [`run-window-decision.md` §4.3](./run-window-decision.md#43-hourly-resolution-is-not-interpolated); [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03**, **D-OM-04**
-- Allowed write scope: `src/lib/runWindows.js`, `src/lib/outdoorPlan.js`,
-  `scripts/subhourly-window-test.mjs`
-- Acceptance evidence: committed fixture proves the true boundary and explicit
-  null-policy outcome for both consumer derivations
-- Coder rule: implement only cited amended time axis and D-OM-04 policy; an uncited interpolation, factor default, or time rule is a blocker requiring authority.
+  06:00–06:45 then wet 07:00 ends at 06:45
+- Authority refs: [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03**
+- Allowed write scope: `src/lib/outdoorPlan.js`, `scripts/subhourly-window-test.mjs`
+- Acceptance evidence: committed fixture proves the true dry-window boundary
+- Coder rule: implement only cited amended Outdoor-plan time axis; an uncited interpolation or time rule is a blocker requiring authority.
 
 ### T-OM-33 — resolution-aware window surfaces — **BLOCKED**
 
 - System node: FEAT-OM-SUBHOURLY-WINDOWS
 - Phase / wave: Phase 4 / Wave D
 - Hard prerequisites: T-OM-32
-- Provides / consumes: presents native sub-hourly windows where available and
-  explicit hourly resolution elsewhere; consumes the two derivations
+- Provides / consumes: presents native sub-hourly Outdoor-plan windows where
+  available and explicit hourly resolution elsewhere; consumes its derivation
 - Closure gate: `node scripts/subhourly-surface-test.mjs && npm run test:smoke`
   proves visible resolution and the 06:45 boundary in native coverage
-- Authority refs: [`run-window-decision.md` §9](./run-window-decision.md#9-v1-implementation-decisions); [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03**, **D-OM-04**
-- Allowed write scope: only the named Run windows and Outdoor plan consumer
-  components, `scripts/subhourly-surface-test.mjs`, and their focused fixtures
+- Authority refs: [`outdoor-plan-decision.md` §Product boundary](./outdoor-plan-decision.md#product-boundary); **D-OM-03**
+- Allowed write scope: the Outdoor-plan consumer component,
+  `scripts/subhourly-surface-test.mjs`, and focused fixtures
 - Acceptance evidence: rendered native and out-of-coverage fixtures show the
-  active resolution; hourly locations retain hourly windows
+  active resolution; hourly locations retain hourly Outdoor-plan windows
 - Coder rule: implement only cited resolution-aware presentation after amended authority; any uncited surface, wording, or resolution claim is a blocker requiring authority.
 
 ### D-OM-05 — correct daily-cloud documentation
@@ -658,7 +651,7 @@ A task moves to `ready` only when every hard prerequisite is `closed`.
 | **T-OM-20** convective | CAP-OM-CONVECTIVE | 3 | convective | T-OM-02, **D-OM-02**, severe-desk Wave approval | `blocked` | `node scripts/convective-ingredients-test.mjs && npm run test:smoke` |
 | **T-OM-30** coverage + contract | CAP-OM-SUBHOURLY-EVIDENCE | 4 | subhourly | **D-OM-03**, T-OM-02 | `blocked` | `node scripts/subhourly-coverage-test.mjs` |
 | **T-OM-31** sub-hourly normalize | CAP-OM-SUBHOURLY-EVIDENCE | 4 | subhourly | T-OM-30 | `blocked` | `node scripts/subhourly-normalization-test.mjs` |
-| **T-OM-32** window time axis | FEAT-OM-SUBHOURLY-WINDOWS | 4 | subhourly | T-OM-31, **D-OM-04** | `blocked` | `node scripts/subhourly-window-test.mjs` |
+| **T-OM-32** Outdoor-plan time axis | FEAT-OM-SUBHOURLY-WINDOWS | 4 | subhourly | T-OM-31 | `blocked` | `node scripts/subhourly-window-test.mjs` |
 | **T-OM-33** window surfaces | FEAT-OM-SUBHOURLY-WINDOWS | 4 | subhourly | T-OM-32 | `blocked` | `node scripts/subhourly-surface-test.mjs && npm run test:smoke` |
 | **D-OM-05** README correction | FND-OM-DOCUMENTATION-ACCURACY | 0 | standards | — | `ready` | committed documentation correction |
 
@@ -703,7 +696,7 @@ Tier 1 is closed when all of the following hold:
 7. **Suite green.** `npm test` passes end to end, including `build`, `smoke`,
    `contrast`, and `persistence`.
 8. **Blocked work still visibly blocked.** T-OM-20 and T-OM-30–33 remain
-   blocked, with D-OM-02, D-OM-03, and D-OM-04 open and named. Tier 1 closure
+   blocked, with D-OM-02 and D-OM-03 open and named. Tier 1 closure
    does **not** silently absorb them.
 
 ### Explicitly not a success criterion
@@ -726,8 +719,8 @@ At Tier close, run the full suite:
 npm test
 ```
 
-which chains `test:summary`, `test:contract`, `test:run-windows`,
-`test:reverse`, `test:precip`, `test:precip-event`, `test:timing`,
+which chains `test:summary`, `test:contract`, `test:reverse`,
+`test:precip`, `test:precip-event`, `test:timing`,
 `test:explain`, `test:outdoor-plan`, `test:alerts`, `test:aqi`, `test:air`,
 `test:confidence`, `test:confidence-data`, the severe-desk suites, `build`,
 `test:smoke`, `test:contrast`, `test:persistence`, and `test:radar`. Tier close
@@ -744,4 +737,5 @@ gate above passes and success criteria 1–8 are demonstrably met.
 
 | Version | Date | Notes |
 | --- | --- | --- |
-| 1.0 | 2026-08-11 | Initial decomposition. Records D-OM-03 and D-OM-04 as newly-discovered blockers: sub-hourly windows contradict locked run-window and outdoor-plan v1 authority, and `factorsFor`'s all-or-nothing gate silently voids run windows under a sub-hourly series |
+| 1.1 | 2026-08-12 | Run Window removed from the product. Dew point is now visible beside hourly temperature; Phase 4 concerns only the Outdoor plan's locked hourly time axis. |
+| 1.0 | 2026-08-11 | Initial decomposition. |

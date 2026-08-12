@@ -63,6 +63,9 @@ export default function HourlyStrip({
                   {roundTemp(h.temperature) ?? '—'}
                   {units.tempSuffix}
                 </span>
+                <span className="hour__dewpoint">
+                  Dew {roundTemp(h.dewPoint) ?? '—'}{units.tempSuffix}
+                </span>
                 <span className={`hour__chance ${chance >= 20 ? 'hour__chance--on' : ''}`}>
                   {chance >= 20 ? `${chance}%` : ''}
                 </span>

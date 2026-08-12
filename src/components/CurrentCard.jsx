@@ -7,7 +7,6 @@ import WindDial from './WindDial.jsx'
 import SunArc from './SunArc.jsx'
 import HourlyStrip from './HourlyStrip.jsx'
 import AqiStat from './AqiStat.jsx'
-import RunWindows from './RunWindows.jsx'
 
 export default function CurrentCard({
   place,
@@ -98,7 +97,6 @@ export default function CurrentCard({
           ) : null}
         </div>
 
-        <RunWindows day={today} currentTime={current.time} place={place} units={units} />
       </div>
 
       <div className="current__panels">

@@ -214,7 +214,7 @@ src/
     CloudMeter        cloud cover ring
     WindDial          compass with needle + gusts
     SunArc            compact sunrise→sunset track with current position
-    HourlyStrip       hourly columns + temperature trend (next-24 or a full day)
+    HourlyStrip       hourly temperature and dew-point columns (next-24 or a full day)
     RadarPanel        animated RainViewer radar (lazy-loaded)
     AlertsPanel       active NWS alerts (lazy-loaded, U.S. coverage)
     AqiStat           current US AQI in the current-card stat row (U.S. only)

@@ -77,20 +77,3 @@ export function normaliseCurrentAirQuality(payload) {
   const time = typeof current.time === 'string' && current.time ? current.time : null
   return { usAqi, time, category }
 }
-
-/** Preserve hourly US AQI only when every timestamp/value pair is usable. */
-export function normaliseHourlyAirQuality(payload) {
-  const hourly = payload && typeof payload === 'object' ? payload.hourly : null
-  const times = Array.isArray(hourly?.time) ? hourly.time : null
-  const values = Array.isArray(hourly?.us_aqi) ? hourly.us_aqi : null
-  if (!times || !values || times.length !== values.length || times.length === 0) return null
-
-  const byTime = new Map()
-  for (let index = 0; index < times.length; index += 1) {
-    const time = times[index]
-    const value = typeof values[index] === 'number' ? values[index] : Number(values[index])
-    if (typeof time !== 'string' || !time || !Number.isFinite(value) || !usAqiCategory(value)) return null
-    byTime.set(time, value)
-  }
-  return byTime
-}

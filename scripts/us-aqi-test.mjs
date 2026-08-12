@@ -7,11 +7,10 @@ import assert from 'node:assert/strict'
 import {
   isUsAqiCoverage,
   normaliseCurrentAirQuality,
-  normaliseHourlyAirQuality,
   usAqiCategory,
   US_AQI_LABEL,
 } from '../src/lib/usAqi.js'
-import { fetchAirQuality, fetchHourlyAirQuality } from '../src/lib/api.js'
+import { fetchAirQuality } from '../src/lib/api.js'
 
 assert.equal(US_AQI_LABEL, 'US AQI', 'primary UI label must be exactly "US AQI"')
 
@@ -32,17 +31,6 @@ assert.equal(isUsAqiCoverage(NaN, -87.6), false)
     threw = err
   }
   assert.ok(threw, 'fetchAirQuality must reject outside U.S. coverage')
-  assert.equal(threw.code, 'coverage')
-}
-
-{
-  let threw = null
-  try {
-    await fetchHourlyAirQuality({ latitude: 51.5, longitude: -0.12 })
-  } catch (err) {
-    threw = err
-  }
-  assert.ok(threw, 'fetchHourlyAirQuality must reject outside U.S. coverage')
   assert.equal(threw.code, 'coverage')
 }
 
@@ -103,18 +91,5 @@ assert.deepEqual(noTime, {
   time: null,
   category: { key: 'good', label: 'Good' },
 })
-
-const hourly = normaliseHourlyAirQuality({
-  hourly: {
-    time: ['2026-08-10T12:00', '2026-08-10T13:00'],
-    us_aqi: [42, '53'],
-  },
-})
-assert.deepEqual([...hourly.entries()], [
-  ['2026-08-10T12:00', 42],
-  ['2026-08-10T13:00', 53],
-])
-assert.equal(normaliseHourlyAirQuality({ hourly: { time: ['2026-08-10T12:00'], us_aqi: [] } }), null)
-assert.equal(normaliseHourlyAirQuality({ hourly: { time: ['2026-08-10T12:00'], us_aqi: [-1] } }), null)
 
 console.log('US AQI category + normalise: passed')

@@ -243,7 +243,14 @@ const server = createServer(async (req, res) => {
   }
 })
 
-await new Promise((resolve) => server.listen(PORT, resolve))
+await new Promise((resolve, reject) => {
+  const onError = (error) => reject(error)
+  server.once('error', onError)
+  server.listen(PORT, () => {
+    server.off('error', onError)
+    resolve()
+  })
+})
 const serverPort = server.address().port
 
 // ---- run -----------------------------------------------------------------
@@ -261,7 +268,6 @@ for (const [name, viewport] of [
   const page = await browser.newPage({ viewport, deviceScaleFactor: 2 })
   const consoleErrors = []
   let alertMode = 'active'
-  let airMode = 'ready'
   let alertRequests = 0
   let airRequests = 0
   let confidenceRequests = 0
@@ -301,13 +307,6 @@ for (const [name, viewport] of [
   })
   await page.route('**/api/air*', (route) => {
     airRequests += 1
-    if (airMode === 'partial' && route.request().url().includes('hourly=us_aqi')) {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ ...airFixture, hourly: { time: [], us_aqi: [] } }),
-      })
-    }
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(airFixture) })
   })
   await page.route('**/api/confidence*', (route) => {
@@ -361,14 +360,7 @@ for (const [name, viewport] of [
     hailDays: [...document.querySelectorAll('.forecast .day')]
       .map((d, i) => (d.textContent.includes('Hail risk') ? i : null))
       .filter((v) => v !== null),
-    runWindows: {
-      title: document.querySelector('.current .run-windows .metric__label')?.textContent?.trim(),
-      items: [...document.querySelectorAll('.current .run-windows > .run-windows__list .run-windows__item')].map((item) => item.textContent?.trim()),
-      status: document.querySelector('.current .run-windows__status')?.textContent?.trim() ?? null,
-      isInsideCurrent: Boolean(document.querySelector('.current .run-windows')),
-      extraStarts: document.querySelector('.current .run-windows details summary')?.textContent?.trim() ?? null,
-      hasDurationControl: Boolean(document.querySelector('.current .run-windows select')),
-    },
+    runWindowPresent: Boolean(document.querySelector('.current .run-windows')),
   }))
 
   // Guard against stylesheet loss. A CSS section can be deleted without any
@@ -463,24 +455,13 @@ for (const [name, viewport] of [
   if (report.aqi.label !== 'US AQI' || report.aqi.value !== '42' || report.aqi.category !== 'Good') {
     failures.push(`${name}: US AQI current-card widget was not rendered, got ${JSON.stringify(report.aqi)}`)
   }
-  if (report.aqi.count !== 6 || airRequests !== 2) {
+  if (report.aqi.count !== 6 || airRequests !== 1) {
     failures.push(
-      `${name}: AQI current card plus Run windows should issue two scoped air requests, got ${report.aqi.count} stats / ${airRequests} requests`,
+      `${name}: only the compact US AQI stat should request air data, got ${report.aqi.count} stats / ${airRequests} requests`,
     )
   }
-  if (report.runWindows.title !== 'Run window' || report.runWindows.items.length !== 1 || report.runWindows.status !== null || !report.runWindows.isInsideCurrent || report.runWindows.extraStarts !== '3 later starts' || report.runWindows.hasDurationControl) {
-    failures.push(`${name}: Run window must occupy the current-card dead space, use the fixed two-hour default without a duration control, initially show one result, and keep later starts on demand, got ${JSON.stringify(report.runWindows)}`)
-  }
-  if (!report.runWindows.items.some((item) => item.includes('Dewpoint >70°F'))) {
-    failures.push(`${name}: Run windows must disclose the binding constraint rather than a composite score, got ${JSON.stringify(report.runWindows.items)}`)
-  }
-  const twoHourWindow = await page.locator('.run-windows__item').first().innerText()
-  if (!twoHourWindow.startsWith('5:00 PM–7:00 PM')) {
-    failures.push(`${name}: the fixed run window must cover two hours, got ${twoHourWindow}`)
-  }
-  await page.locator('.run-windows details summary').click()
-  if ((await page.locator('.run-windows__item').count()) !== 4) {
-    failures.push(`${name}: later run starts must remain available on demand without consuming the card by default`)
+  if (report.runWindowPresent) {
+    failures.push(`${name}: Run Window must be removed; dew point belongs in the next-24-hours strip`)
   }
   // L0: code 96 is the current fixture. It can be a risk signal, never a
   // measured-hail observation or a tracking claim.
@@ -595,9 +576,14 @@ for (const [name, viewport] of [
     const dayTimes = [...document.querySelectorAll('.day--open .hour__time')].map((n) =>
       n.textContent.trim(),
     )
+    const cardDewpoints = [...document.querySelectorAll('.current .hour__dewpoint')].map((n) =>
+      n.textContent.trim(),
+    )
     return {
       cardCount: cardTemps.length,
       dayCount: dayTemps.length,
+      cardDewpointCount: cardDewpoints.length,
+      cardFirstDewpoint: cardDewpoints[0] ?? null,
       cardFirst: cardTemps[0] ?? null,
       dayFirst: dayTemps[0] ?? null,
       dayLast: dayTemps[dayTemps.length - 1] ?? null,
@@ -618,6 +604,11 @@ for (const [name, viewport] of [
   if (hourlyProbe.cardFirst !== '1014°') {
     failures.push(
       `${name}: current next-24 should start at today's 14:00 (1014°), got ${hourlyProbe.cardFirst}`,
+    )
+  }
+  if (hourlyProbe.cardDewpointCount !== 24 || hourlyProbe.cardFirstDewpoint !== 'Dew 54°') {
+    failures.push(
+      `${name}: next-24 must show a dew point for every hour alongside temperature, got ${hourlyProbe.cardDewpointCount} / ${hourlyProbe.cardFirstDewpoint}`,
     )
   }
   if (hourlyProbe.dayFirst !== '1100°') {
@@ -723,17 +714,6 @@ for (const [name, viewport] of [
     failures.push(`${name}: Alerts should fetch once per opened surface state, got ${alertRequests}`)
   }
   console.log('alerts:', JSON.stringify({ activeAlert, requests: alertRequests }))
-
-  // A malformed/empty hourly AQI series is not a harmless zero: it explicitly
-  // withdraws the ranking while retaining the independent current-card AQI.
-  await page.locator('.tabs button', { hasText: 'Forecast' }).click()
-  airMode = 'partial'
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForSelector('.run-windows__status', { timeout: 10000 })
-  const partialRunWindows = await page.locator('.run-windows__status').innerText()
-  if (partialRunWindows !== 'Hourly US AQI is unavailable for this location; run windows are not ranked.') {
-    failures.push(`${name}: incomplete hourly AQI must withdraw the ranking, got ${partialRunWindows}`)
-  }
 
   if (consoleErrors.length) failures.push(`${name}: ${consoleErrors.join('; ')}`)
   await page.close()

@@ -17,11 +17,11 @@ function json(body, status, extraHeaders = {}) {
   })
 }
 
-export function buildUpstreamAirQualityUrl({ latitude, longitude, coordDecimals = 2, hourly = false }) {
+export function buildUpstreamAirQualityUrl({ latitude, longitude, coordDecimals = 2 }) {
   const params = new URLSearchParams({
     latitude: Number(latitude).toFixed(coordDecimals),
     longitude: Number(longitude).toFixed(coordDecimals),
-    ...(hourly ? { hourly: 'us_aqi' } : { current: 'us_aqi' }),
+    current: 'us_aqi',
     timezone: 'auto',
   })
   return `${OPEN_METEO_AIR}?${params}`
@@ -31,18 +31,12 @@ export default async function handler(request) {
   const params = new URL(request.url).searchParams
   const lat = Number(params.get('lat'))
   const lon = Number(params.get('lon'))
-  const requestedHourly = params.get('hourly')
-  if (requestedHourly !== null && requestedHourly !== 'us_aqi') {
-    return json({ error: 'Unsupported hourly request.' }, 400)
-  }
-  const hourly = requestedHourly === 'us_aqi'
-
   if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
     return json({ error: 'Invalid or missing lat/lon.' }, 400)
   }
 
   // Rounded to ~1 km so nearby visitors share one cache entry.
-  const upstream = buildUpstreamAirQualityUrl({ latitude: lat, longitude: lon, coordDecimals: 2, hourly })
+  const upstream = buildUpstreamAirQualityUrl({ latitude: lat, longitude: lon, coordDecimals: 2 })
 
   try {
     const res = await fetch(upstream, {
