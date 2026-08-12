@@ -86,6 +86,64 @@ before dispatch (see [Decision gaps and blockers](#decision-gaps-and-blockers)).
 
 ---
 
+## Product picture — Tier 1 in plain English
+
+Tier 1 makes the existing Forecast experience more specific without turning it
+into a dashboard, a safety adviser, or a new provider integration. It answers
+questions that the forecast already contains but currently collapses into a
+generic weather code or a single daily number.
+
+### What a person will notice
+
+| Deliverable | In plain English | Where it appears | What it will not claim | Delivery state |
+|---|---|---|---|---|
+| **Rain, snow, and showers through the day** | The hourly forecast can show whether precipitation is rain, snow, showers, or a transition between them, based on the forecast amounts rather than a broad weather icon. | The existing hourly forecast strip. | It does not turn a model forecast into an observation or invent a type when the measured components are inconclusive. | Planned; we first decide what to show when the forecast says precipitation is possible but reports zero rain, shower, and snow amounts. |
+| **Better winter context** | On snowy days, the forecast can show snow on the ground and explain the local freezing-level context in the selected unit system. | Existing forecast-day detail and badges. | It does not make a road-condition claim, a safety recommendation, or a snow forecast from an unratified wet-bulb rule. | Planned; we first decide whether and how to use wet-bulb temperature to describe rain versus snow, and the exact wording for the freezing-level context. |
+| **Visibility and fog context** | A user can see poor visibility as evidence for fog-like conditions even when the weather code does not say “fog.” | Existing forecast-day detail and badges. | It does not assert fog from an arbitrary cutoff or override a defined unavailable state. | Planned; we first decide what visibility counts as fog, and what wins if visibility and the weather code disagree. |
+| **What kind of cloudy day it is** | The forecast distinguishes clouds overhead at different heights: low gray cloud, mid-level cloud, or high cloud. Two days with the same total cloud percentage no longer have to read the same. | Existing cloud meter and daily explanation. | It does not replace the current daylight-only cloud average with Open-Meteo’s all-day aggregate. | Planned after the shared forecast contract closes. |
+| **A more honest daily rain-chance story** | A day that briefly reaches a high rain chance can be described differently from a day with a sustained chance. Daily moisture evidence is retained instead of being discarded. | Existing daily forecast row and its explanation. | It does not replace the current accumulated-precipitation corroboration rule or turn a probability into a promise. | Planned; we first decide the exact difference in wording between a brief chance and a sustained chance. |
+
+### Decisions still needed before those features can be built
+
+These are product choices, not technical cleanup. The technical IDs remain in
+the implementation plan; this table states what a person needs to decide.
+
+| Product decision | The plain-language question | Why it matters |
+|---|---|---|
+| **When forecast amounts disagree with the weather icon** (`D-OM-08`) | If the icon/probability suggests precipitation but rain, showers, and snow amounts are all zero, should the forecast say “possible precipitation,” identify a type from the icon, or stay silent? | Choosing a type without evidence can make rain read as snow, or vice versa. |
+| **How to describe winter precipitation** (`D-OM-06`) | Should we use wet-bulb temperature to say a near-freezing hour is more likely rain or snow? If so, what boundary and what “unknown/mixed” wording are acceptable? | This determines whether winter copy is useful evidence or an overconfident claim. |
+| **What “fog” means in the product** (`D-OM-07`) | At what visibility should the app call conditions foggy? If the weather code says fog but visibility does not, or the reverse, which evidence should the app trust? | A visible fog badge needs a stable, explainable rule instead of an arbitrary number in code. |
+| **How daily rain chance should read** (`D-OM-09`) | What should the forecast say when rain chance peaks briefly versus stays elevated for much of the day? | This determines the user-facing language; the extra aggregate alone is not a feature. |
+
+### Work users will not see directly, but which keeps the feature set honest
+
+| Foundation | Why it exists | User outcome |
+|---|---|---|
+| **Provider behavior probe** | We first measure which fields are safe across representative locations and how the provider fails. | An optional field cannot silently make the core temperature forecast disappear. |
+| **One shared forecast contract** | Browser development and the deployed Netlify function request the same field set and normalize it the same way. | A capability does not work locally but vanish in production. |
+| **Metres converted for the selected unit system** | Snow depth, visibility, and freezing-level height are native metres even when the rest of the forecast is Fahrenheit/inches/miles. | No plausible-looking but wrong raw-metre value reaches the screen. |
+| **Accurate cloud documentation** | The existing daylight-only cloud average is still correct, but its explanation must no longer claim Open-Meteo has no daily cloud fields at all. | Future maintainers preserve the intentional daylight calculation. |
+
+### Explicitly outside the delivered Tier 1 slice for now
+
+These ideas are recorded because they are attractive, not because this spec
+authorizes their implementation. They remain visibly blocked until their
+separate product and authority decisions exist.
+
+| Deferred idea | The eventual user value | Why it is not being built now |
+|---|---|---|
+| **Convective ingredients in Severe Desk** | A severe-weather panel could show model ingredients such as instability and inhibition beside official severe-weather context. | It needs a separate conditional-request design and an explicitly approved Severe Desk Wave. It must never be presented as a hail probability, observation, or storm guarantee. |
+| **Native 15-minute precipitation and finer windows** | In supported areas, the Outdoor plan and Run windows could end at a true 15-minute boundary instead of the nearest hour. | It changes the locked hourly time model for two existing decision helpers, and the 15-minute feed omits factors those helpers currently require. |
+
+### The one-sentence product promise
+
+**Tier 1 makes the existing forecast explain what is happening more precisely —
+what kind of precipitation, visibility, winter context, cloud structure, and
+daily rain pattern — while preserving clear uncertainty and avoiding new safety
+or severe-weather claims.**
+
+---
+
 ## System progression and dependency map
 
 | Node ID | Node type | Authority refs | Phase | Wave | Provides | Consumes | Hard prerequisites | Closure gate |
