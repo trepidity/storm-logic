@@ -407,9 +407,9 @@ check('scrubbing pauses animation at the requested frame', [
   await page.locator('.radar__play').getAttribute('aria-pressed'),
   await page.locator('.radar__scrubber').inputValue(),
 ], ['false', '0'])
-await page.locator('.radar-location-toggle').click()
+await page.locator('.location-toggle').click()
 check('Change location exposes search without leaving Radar', await page.locator('input[type="search"]').isVisible(), true)
-await page.locator('.radar-location-toggle').click()
+await page.locator('.location-toggle').click()
 await page.locator('.radar__official-layers summary').click()
 check('layer disclosure exposes toggles', await page.locator('.radar__layer-toggle').first().isVisible(), true)
 for (const width of [320, 390, 430, 768]) {
@@ -760,6 +760,48 @@ check(
   await page.locator('.radar__layer-status').allTextContents(),
   ['SPC outlooks unavailable.', 'Official alerts unavailable.'],
 )
+
+// Shared-shell consumer contract: tab changes must not move navigation or
+// reveal search chrome the user has not requested.
+for (const width of [320, 393, 768, 1440]) {
+  await page.setViewportSize({ width, height: 850 })
+  const headers = []
+  for (const tab of ['forecast', 'radar', 'alerts']) {
+    await page.locator(`#tab-${tab}`).click()
+    await page.locator(`#panel-${tab}`).waitFor()
+    await page.evaluate(() => window.scrollTo(0, 0))
+    headers.push(await page.locator('.topbar').boundingBox())
+    check(`${width}px ${tab}: no forecast controls in shared header`, await page.locator('.topbar .unit-toggle').count(), 0)
+    if (width <= 680) {
+      check(`${width}px ${tab}: header stays one compact row`, headers.at(-1).height <= 64, true)
+      check(`${width}px ${tab}: header controls stay within viewport`, await page.locator('.topbar').evaluate((node) => [...node.querySelectorAll('button')].every(button => button.getBoundingClientRect().right <= innerWidth)), true)
+      check(`${width}px ${tab}: location search starts collapsed`, await page.locator('input[type="search"]').isVisible(), false)
+      check(`${width}px ${tab}: Change location available`, await page.getByRole('button', { name: 'Change location', exact: true }).isVisible(), true)
+    }
+    if (width === 393) {
+      console.log(`LAYOUT ${tab}: header=${headers.at(-1).height}px panelTop=${(await page.locator(`#panel-${tab}`).boundingBox()).y}px`)
+      await page.screenshot({ path: `/tmp/stormlogic-header-${tab}-mobile.png` })
+    }
+    if (width === 1440) await page.screenshot({ path: `/tmp/stormlogic-header-${tab}-desktop.png` })
+  }
+  check(`${width}px: identical header geometry across three views`, headers.every((box) => JSON.stringify(box) === JSON.stringify(headers[0])), true)
+}
+await page.setViewportSize({ width: 393, height: 850 })
+await page.locator('#tab-forecast').click()
+const sharedToggle = page.getByRole('button', { name: 'Change location', exact: true })
+if (await sharedToggle.isVisible()) {
+  await sharedToggle.focus()
+  await page.keyboard.press('Enter')
+  for (const tab of ['alerts', 'radar', 'forecast']) {
+    await page.locator(`#tab-${tab}`).click()
+    check(`${tab}: disclosure stays open across tabs`, await page.locator('input[type="search"]').isVisible(), true)
+  }
+  await page.getByRole('button', { name: 'Close locations', exact: true }).click()
+  check('closing locations hides saved places as well as search', await page.locator('.saved-places-region').evaluate((node) => getComputedStyle(node).display), 'none')
+}
+await page.locator('#tab-forecast').click()
+check('forecast retains units beside current conditions', await page.locator('.current .unit-toggle').isVisible(), true)
+check('forecast retains refresh beside current conditions', await page.locator('.current .refresh').isVisible(), true)
 
 await browser.close()
 server.close()

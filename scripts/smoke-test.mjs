@@ -363,6 +363,10 @@ for (const [name, viewport] of [
     runWindowPresent: Boolean(document.querySelector('.current .run-windows')),
   }))
 
+  // Location controls are progressively disclosed on compact screens.
+  const locationToggle = page.getByRole('button', { name: 'Change location', exact: true })
+  if (await locationToggle.isVisible()) await locationToggle.click()
+
   // Guard against stylesheet loss. A CSS section can be deleted without any
   // behavioural test noticing — every assertion here passed once while the
   // tabs, radar and favourite-toggle rules were gone from the build.
@@ -426,6 +430,8 @@ for (const [name, viewport] of [
     failures.push(`${name}: focused location disclosure must name BigDataCloud`)
   }
   await page.locator('.search__geo').evaluate((n) => n.blur())
+  const closeLocations = page.getByRole('button', { name: 'Close locations', exact: true })
+  if (await closeLocations.isVisible()) await closeLocations.click()
 
   // Every forecast day is immediately reachable, with a named row-level action
   // rather than a second disclosure that hides both the remaining days and their details.

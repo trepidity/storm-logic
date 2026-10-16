@@ -58,7 +58,7 @@ export default function App() {
   const [error, setError] = useState(null)
   // Not persisted: forecast is the right thing to land on every visit.
   const [tab, setTab] = useState('forecast')
-  const [radarLocationsOpen, setRadarLocationsOpen] = useState(false)
+  const [locationsOpen, setLocationsOpen] = useState(false)
   // A selected NWS alert is session-only context for the Radar handoff. Manual
   // Radar navigation clears it, so stale alert areas never follow a user to a
   // different place or a later, unrelated map visit.
@@ -276,12 +276,10 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${tab === 'radar' ? 'app--radar' : ''} ${radarLocationsOpen ? 'app--locations-open' : ''}`}>
+    <div className={`app ${tab === 'radar' ? 'app--radar' : ''} ${locationsOpen ? 'app--locations-open' : ''}`}>
       <div className="app__sky" aria-hidden="true" />
 
-      {/* Everything navigational lives on one line: brand, tabs, search and
-          controls. This used to be three stacked rows, which spent most of the
-          first screen on chrome instead of weather. */}
+      {/* One shared navigation/search shell; view-specific controls stay with content. */}
       <header className="topbar">
         <div className="brand">
           <span className="brand__mark" aria-hidden="true">
@@ -311,44 +309,22 @@ export default function App() {
           ))}
         </nav>
 
-        {tab === 'radar' ? (
-          <button
-            type="button"
-            className="radar-location-toggle"
-            aria-expanded={radarLocationsOpen}
-            aria-controls="location-search radar-saved-places"
-            onClick={() => setRadarLocationsOpen((open) => !open)}
-          >
-            {radarLocationsOpen ? 'Close locations' : 'Change location'}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="location-toggle"
+          aria-expanded={locationsOpen}
+          aria-controls="location-search saved-places"
+          onClick={() => setLocationsOpen((open) => !open)}
+        >
+          {locationsOpen ? 'Close locations' : 'Change location'}
+        </button>
         <div id="location-search" className="location-search">
           <LocationSearch onSelect={selectPlace} onUseMyLocation={useMyLocation} />
-        </div>
-
-        <div className="topbar__controls">
-          <div className="unit-toggle" role="group" aria-label="Temperature units">
-            {Object.values(UNIT_PRESETS).map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                className={preset.id === unitId ? 'is-active' : ''}
-                aria-pressed={preset.id === unitId}
-                onClick={() => setUnitId(preset.id)}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-          <button type="button" className="refresh" onClick={load} title="Refresh">
-            <span aria-hidden="true">↻</span>
-            <span className="visually-hidden">Refresh forecast</span>
-          </button>
         </div>
       </header>
 
       <main className="layout">
-        <div id="radar-saved-places" className="saved-places-region">
+        <div id="saved-places" className="saved-places-region">
           <SavedPlaces
             activeKey={activeKey}
             favorites={favorites}
@@ -394,6 +370,27 @@ export default function App() {
               timezone={data.timezone}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
+              controls={
+                <div className="forecast-controls">
+                  <div className="unit-toggle" role="group" aria-label="Temperature units">
+                    {Object.values(UNIT_PRESETS).map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={preset.id === unitId ? 'is-active' : ''}
+                        aria-pressed={preset.id === unitId}
+                        onClick={() => setUnitId(preset.id)}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" className="refresh" onClick={load} title="Refresh">
+                    <span aria-hidden="true">↻</span>
+                    <span className="visually-hidden">Refresh forecast</span>
+                  </button>
+                </div>
+              }
             />
             <Forecast days={data.days} units={units} place={place} />
           </div>

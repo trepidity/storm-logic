@@ -284,7 +284,8 @@ is showing.
 The radar map is the primary work surface. On phones it runs edge-to-edge with
 viewport-sized height; **Play/Pause** and a touch/keyboard time scrubber sit directly
 beneath it. **Change location** reveals search and saved places without leaving Radar.
-Forecast units and forecast refresh remain on the Forecast/Alerts views. **Layers &
+Forecast units and forecast refresh live beside the temperature in Current conditions,
+not in the shared header. **Layers &
 map key** starts collapsed; opening it exposes the existing visibility controls,
 source/time details, and semantic legend without changing which layers are enabled.
 Desktop retains individual frame buttons and a wider map.
@@ -312,13 +313,18 @@ tests use regexes.
 
 ## Layout
 
-On Forecast and Alerts, brand, tabs, search (with icon-only locate), units, refresh sit on
-**one header row**, with saved and recent locations on a single scrolling line below it. Locate is
-icon-only (`◎`) so the search field stays elastic; the BigDataCloud privacy line expands on
-hover/focus/locating rather than always claiming a row. This was previously
-four stacked rows and pushed the weather itself off the top of a laptop screen. The search is the
-only elastic item in the row; below 900px the wordmark drops, below 680px the search wraps to its
-own line. Radar uses the map-first variant described above.
+Forecast, Radar, and Alerts share the same header geometry at every width. On
+phones, one compact row contains the three view pills and **Change location**;
+search and saved/recent places stay collapsed until requested. That disclosure
+state and the search field survive switching views. Desktop keeps brand, tabs,
+and elastic search in the same shared 1200px shell. Units and forecast refresh
+sit beside the current temperature, never in global navigation or Alerts.
+The radar keeps its edge-to-edge map and directly reachable playback controls.
+
+The browser seam in `scripts/radar-test.mjs` checks identical header bounds across
+all three views at 320, 393, 768, and 1440px, mobile disclosure state through tab
+changes, and the contextual forecast controls. Screenshots use provider fixtures;
+physical-device and live-provider qualification remain separate.
 
 ## Saved locations
 

@@ -29,7 +29,7 @@
   --radius-lg: 26px;
   --radius-md: 18px;
   --radius-sm: 12px;
-  --maxw: 940px;
+  --maxw: 1200px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   --tone-rain: #6fc2ff;
@@ -242,7 +242,8 @@ a {
   font-size: 1.05rem;
 }
 
-.topbar__controls {
+.forecast-controls {
+  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -304,7 +305,7 @@ a {
 }
 
 .location-search, .saved-places-region { display: contents; }
-.radar-location-toggle { display: none; }
+.location-toggle { display: none; }
 
 /* ===== Search ============================================================ */
 
@@ -1088,32 +1089,34 @@ a {
   background: var(--layer-color);
 }
 
-/* Radar is a work surface; keep forecast controls out of its chrome. */
-.app--radar { --maxw: 1200px; }
-.app--radar .topbar__controls { display: none; }
+/* Shared compact shell across all views; the map retains its edge-to-edge body. */
 
 @media (max-width: 680px) {
-  .app--radar .topbar {
+  .topbar {
     width: calc(100% - 24px);
     padding-top: 8px;
     gap: 8px;
   }
-  .app--radar .brand { display: none; }
-  .app--radar .tabs { flex: 1; }
-  .app--radar .tabs button { min-height: 48px; flex: 1; padding-inline: 8px; }
+  .brand { display: none; }
+  .tabs { flex: 1; }
+  .tabs button { min-height: 48px; flex: 1; padding-inline: 8px; }
   .app--radar .layout { width: 100%; padding-top: 0; gap: 0; }
-  .app--radar .location-search,
-  .app--radar .saved-places-region { display: none; }
-  .radar-location-toggle {
+  .location-search,
+  .saved-places-region { display: none; }
+  .forecast-controls { gap: 4px; }
+  .forecast-controls .unit-toggle button { min-width: 48px; min-height: 48px; padding: 4px 8px; }
+  .forecast-controls .refresh { width: 48px; height: 48px; }
+  .current__reading { flex-wrap: wrap; }
+  .location-toggle {
     display: block;
     min-height: 48px;
     padding: 8px 12px;
     color: var(--accent);
     font-size: 0.875rem;
   }
-  .app--radar.app--locations-open .location-search, .saved-places-region { display: contents; }
-  .app--radar.app--locations-open .saved-places-region { display: block; padding: 12px; }
-  .app--radar .search__field input { min-width: 0; font-size: 16px; }
+  .app--locations-open .location-search { display: contents; }
+  .app--locations-open .saved-places-region { display: block; padding: 12px; }
+  .search__field input { min-width: 0; font-size: 16px; }
   .radar {
     border: 0;
     border-radius: 0;
@@ -2287,4 +2290,9 @@ a {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Keep the shared header on one row on the narrowest supported phones. */
+@media (max-width: 360px) {
+  .location-toggle { max-width: 80px; padding-inline: 4px; line-height: 1.25; }
 }

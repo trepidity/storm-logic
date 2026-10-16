@@ -19,6 +19,7 @@ export default function CurrentCard({
   timezone,
   isFavorite,
   onToggleFavorite,
+  controls,
 }) {
   const condition = describeCode(current.weatherCode)
   const nowMinutes = parseLocalIso(current.time)?.minutesOfDay ?? null
@@ -57,10 +58,13 @@ export default function CurrentCard({
       <div className="current__hero">
         <div>
           <div className="current__reading">
-            <p className="current__temp">
-              {formatTemp(current.temperature, units)}
-              <span className="current__unit">{units.symbol}</span>
-            </p>
+            <div>
+              <p className="current__temp">
+                {formatTemp(current.temperature, units)}
+                <span className="current__unit">{units.symbol}</span>
+              </p>
+              {controls}
+            </div>
             <div className="current__summary">
               <p className="current__condition">{condition.label}</p>
               <p className="current__feels">Feels like {formatTemp(current.feelsLike, units)}</p>
