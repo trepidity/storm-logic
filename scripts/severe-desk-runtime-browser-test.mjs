@@ -21,6 +21,7 @@ try {
 
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 })
   await page.locator('.tabs button', { hasText: 'Radar' }).click()
+  await page.locator('.radar__official-layers > summary').click()
   await page.waitForSelector('.radar__layer[data-layer-id="storm-reports"]', { timeout: 30_000 })
   await page.waitForFunction(
     () => [...document.querySelectorAll('.radar__layer')].every((element) => !element.classList.contains('radar__layer--unavailable')),

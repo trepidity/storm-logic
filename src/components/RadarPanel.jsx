@@ -194,8 +194,11 @@ export default function RadarPanel({ place, alert = null, officialLayerStates = 
     mapRef.current = map
     const onMoveEnd = () => setViewportRevision((revision) => revision + 1)
     map.on('moveend', onMoveEnd)
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize({ pan: false }))
+    resizeObserver.observe(containerRef.current)
 
     return () => {
+      resizeObserver.disconnect()
       map.off('moveend', onMoveEnd)
       // A place switch can unmount a map while Leaflet still has a pan/zoom
       // animation queued. Stop it before detaching panes so an old map never
@@ -557,7 +560,62 @@ export default function RadarPanel({ place, alert = null, officialLayerStates = 
 
       <div className="radar__map" ref={containerRef} />
 
-      <section className="radar__official-layers" aria-label="Severe desk layers">
+      {frames.length > 1 ? (
+        <div className="radar__controls">
+          <button
+            type="button"
+            className="radar__play"
+            onClick={() => setPlaying((p) => !p)}
+            aria-pressed={playing}
+            aria-label={playing ? 'Pause the radar loop' : 'Play the radar loop'}
+          >
+            <span aria-hidden="true">{playing ? '⏸' : '▶'}</span>
+            <span>{playing ? 'Pause' : 'Play'}</span>
+          </button>
+
+          <div className="radar__timeline">
+            <input
+              className="radar__scrubber"
+              type="range"
+              min="0"
+              max={frames.length - 1}
+              value={index}
+              aria-label="Radar time"
+              aria-valuetext={active ? `${active.future ? 'Forecast' : 'Observed'} · ${frameClock(active.time)}` : undefined}
+              onChange={(event) => {
+                setPlaying(false)
+                setIndex(Number(event.target.value))
+              }}
+            />
+            <ol className="radar__ticks">
+              {frames.map((frame, i) => (
+                <li key={frame.path}>
+                  <button
+                    type="button"
+                    className={`radar__tick ${frame.future ? 'radar__tick--future' : ''} ${
+                      i === index ? 'radar__tick--on' : ''
+                    }`}
+                    title={`${frameClock(frame.time)}${frame.future ? ' (forecast)' : ''}`}
+                    aria-label={`Show ${frameClock(frame.time)}${frame.future ? ', forecast' : ''}`}
+                    onClick={() => {
+                      setPlaying(false)
+                      setIndex(i)
+                    }}
+                  />
+                </li>
+              ))}
+            </ol>
+            <div className="radar__scale">
+              <span>{frameClock(frames[0].time)}</span>
+              <span>{active ? `${active.future ? 'Forecast' : 'Observed'} · ${frameClock(active.time)}` : 'Select a frame'}</span>
+              <span>{frameClock(frames[frames.length - 1].time)}</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <details className="radar__official-layers">
+        <summary>Layers &amp; map key <span>{visibleOfficialLayers.size} enabled</span></summary>
         <div className="radar__official-layers-head">
           <div>
             <span className="metric__label">Severe desk layers</span>
@@ -624,7 +682,12 @@ export default function RadarPanel({ place, alert = null, officialLayerStates = 
             )
           })}
         </ul>
-      </section>
+        <div className="radar__map-legend" aria-label="Severe desk map legend">
+          {deskStack.map((layer) => (
+            <span key={layer.layerId} style={{ '--layer-color': layer.color }}><i aria-hidden="true" />{layer.label}</span>
+          ))}
+        </div>
+      </details>
 
       {status === 'error' ? (
         <p className="inline-error" role="status">
@@ -632,56 +695,10 @@ export default function RadarPanel({ place, alert = null, officialLayerStates = 
         </p>
       ) : null}
 
-      {frames.length > 1 ? (
-        <div className="radar__controls">
-          <button
-            type="button"
-            className="radar__play"
-            onClick={() => setPlaying((p) => !p)}
-            aria-pressed={playing}
-          >
-            <span aria-hidden="true">{playing ? '⏸' : '▶'}</span>
-            <span className="visually-hidden">{playing ? 'Pause the radar loop' : 'Play the radar loop'}</span>
-          </button>
-
-          <div className="radar__timeline">
-            <ol className="radar__ticks">
-              {frames.map((frame, i) => (
-                <li key={frame.path}>
-                  <button
-                    type="button"
-                    className={`radar__tick ${frame.future ? 'radar__tick--future' : ''} ${
-                      i === index ? 'radar__tick--on' : ''
-                    }`}
-                    title={`${frameClock(frame.time)}${frame.future ? ' (forecast)' : ''}`}
-                    aria-label={`Show ${frameClock(frame.time)}${frame.future ? ', forecast' : ''}`}
-                    onClick={() => {
-                      setPlaying(false)
-                      setIndex(i)
-                    }}
-                  />
-                </li>
-              ))}
-            </ol>
-            <div className="radar__scale">
-              <span>{frameClock(frames[0].time)}</span>
-              <span>{active ? `${active.future ? 'Forecast' : 'Observed'} · ${frameClock(active.time)}` : 'Select a frame'}</span>
-              <span>{frameClock(frames[frames.length - 1].time)}</span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       <div className="radar__legend">
         <span>Light</span>
         <div className="radar__ramp" />
         <span>Heavy</span>
-      </div>
-
-      <div className="radar__map-legend" aria-label="Severe desk map legend">
-        {deskStack.map((layer) => (
-          <span key={layer.layerId} style={{ '--layer-color': layer.color }}><i aria-hidden="true" />{layer.label}</span>
-        ))}
       </div>
 
       <p className="radar__provenance">

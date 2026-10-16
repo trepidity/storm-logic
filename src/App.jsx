@@ -58,6 +58,7 @@ export default function App() {
   const [error, setError] = useState(null)
   // Not persisted: forecast is the right thing to land on every visit.
   const [tab, setTab] = useState('forecast')
+  const [radarLocationsOpen, setRadarLocationsOpen] = useState(false)
   // A selected NWS alert is session-only context for the Radar handoff. Manual
   // Radar navigation clears it, so stale alert areas never follow a user to a
   // different place or a later, unrelated map visit.
@@ -275,7 +276,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${tab === 'radar' ? 'app--radar' : ''} ${radarLocationsOpen ? 'app--locations-open' : ''}`}>
       <div className="app__sky" aria-hidden="true" />
 
       {/* Everything navigational lives on one line: brand, tabs, search and
@@ -310,7 +311,20 @@ export default function App() {
           ))}
         </nav>
 
-        <LocationSearch onSelect={selectPlace} onUseMyLocation={useMyLocation} />
+        {tab === 'radar' ? (
+          <button
+            type="button"
+            className="radar-location-toggle"
+            aria-expanded={radarLocationsOpen}
+            aria-controls="location-search radar-saved-places"
+            onClick={() => setRadarLocationsOpen((open) => !open)}
+          >
+            {radarLocationsOpen ? 'Close locations' : 'Change location'}
+          </button>
+        ) : null}
+        <div id="location-search" className="location-search">
+          <LocationSearch onSelect={selectPlace} onUseMyLocation={useMyLocation} />
+        </div>
 
         <div className="topbar__controls">
           <div className="unit-toggle" role="group" aria-label="Temperature units">
@@ -334,14 +348,16 @@ export default function App() {
       </header>
 
       <main className="layout">
-        <SavedPlaces
-          activeKey={activeKey}
-          favorites={favorites}
-          recents={recents}
-          onSelect={selectPlace}
-          onRemoveFavorite={removeFavorite}
-          onRemoveRecent={removeRecent}
-        />
+        <div id="radar-saved-places" className="saved-places-region">
+          <SavedPlaces
+            activeKey={activeKey}
+            favorites={favorites}
+            recents={recents}
+            onSelect={selectPlace}
+            onRemoveFavorite={removeFavorite}
+            onRemoveRecent={removeRecent}
+          />
+        </div>
 
         {status === 'loading' && !data && tab === 'forecast' ? (
           <div className="state state--loading">

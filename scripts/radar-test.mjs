@@ -379,6 +379,48 @@ await page.locator('.tabs button', { hasText: 'Radar' }).click()
 await page.waitForSelector('.radar__tick', { timeout: 15000 })
 await page.waitForTimeout(600)
 
+// Mobile product seam: the user's primary task must not require scrolling
+// past secondary layers. Catch padded-card/header regressions with real bounds.
+await page.setViewportSize({ width: 393, height: 850 })
+await page.evaluate(() => window.scrollTo(0, 0))
+const mobileLayout = await page.evaluate(() => {
+  const map = document.querySelector('.radar__map').getBoundingClientRect()
+  const play = document.querySelector('.radar__play').getBoundingClientRect()
+  return {
+    wideMap: map.width >= 369,
+    tallMap: map.height >= 500,
+    playVisible: play.bottom <= innerHeight && play.top >= map.bottom,
+    touchTarget: play.height >= 48 && play.width >= 48,
+    noOverflow: document.documentElement.scrollWidth <= innerWidth,
+  }
+})
+check('mobile radar is map-dominant with reachable playback', mobileLayout, {
+  wideMap: true, tallMap: true, playVisible: true, touchTarget: true, noOverflow: true,
+})
+await page.screenshot({ path: '/tmp/stormlogic-radar-mobile.png', fullPage: true })
+check('secondary layer controls start collapsed', await page.locator('.radar__official-layers').getAttribute('open'), null)
+await page.locator('.radar__play').click()
+check('mobile Play starts the loop', await page.locator('.radar__play').getAttribute('aria-pressed'), 'true')
+await page.locator('.radar__scrubber').focus()
+await page.keyboard.press('Home')
+check('scrubbing pauses animation at the requested frame', [
+  await page.locator('.radar__play').getAttribute('aria-pressed'),
+  await page.locator('.radar__scrubber').inputValue(),
+], ['false', '0'])
+await page.locator('.radar-location-toggle').click()
+check('Change location exposes search without leaving Radar', await page.locator('input[type="search"]').isVisible(), true)
+await page.locator('.radar-location-toggle').click()
+await page.locator('.radar__official-layers summary').click()
+check('layer disclosure exposes toggles', await page.locator('.radar__layer-toggle').first().isVisible(), true)
+for (const width of [320, 390, 430, 768]) {
+  await page.setViewportSize({ width, height: 850 })
+  check(`radar and expanded layers fit ${width}px without horizontal scrolling`,
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+}
+await page.setViewportSize({ width: 1180, height: 1000 })
+await page.locator('.radar__tick').nth(2).click()
+await page.screenshot({ path: '/tmp/stormlogic-radar-desktop.png', fullPage: true })
+
 check('forecast card is gone while radar is open', await page.locator('.current__temp').count(), 0)
 check('one tick per frame', await page.locator('.radar__tick').count(), 5)
 check('forecast frames are marked', await page.locator('.radar__tick--future').count(), 2)

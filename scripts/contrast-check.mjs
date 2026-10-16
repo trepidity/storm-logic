@@ -94,6 +94,8 @@ const TARGETS = [
 // Only present once the Radar tab is open, so they're measured in a second pass.
 const RADAR_TARGETS = [
   ['.radar__stamp', 'radar timestamp'],
+  ['.radar__play', 'radar playback action'],
+  ['.radar__official-layers > summary', 'radar layers disclosure'],
   ['.radar__scale span', 'radar time scale'],
   ['.radar__legend span', 'radar legend'],
   ['.radar__provenance', 'radar product provenance'],
@@ -445,6 +447,7 @@ for (const theme of themesToCheck) {
   // Second pass with the Radar tab open — its chrome only exists there.
   await page.locator('.tabs button', { hasText: 'Radar' }).click()
   await page.waitForSelector('.radar__tick', { timeout: 15000 })
+  await page.locator('.radar__official-layers > summary').click()
   await page.waitForTimeout(400)
   for (const [selector, label] of RADAR_TARGETS) await measure(selector, label)
 

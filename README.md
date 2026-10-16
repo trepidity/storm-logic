@@ -281,6 +281,21 @@ tiles are heavy on mobile data, so `RadarPanel` is `React.lazy`-loaded and none 
 until the tab is opened. `radar-test.mjs` asserts that: zero tile requests while the Forecast tab
 is showing.
 
+The radar map is the primary work surface. On phones it runs edge-to-edge with
+viewport-sized height; **Play/Pause** and a touch/keyboard time scrubber sit directly
+beneath it. **Change location** reveals search and saved places without leaving Radar.
+Forecast units and forecast refresh remain on the Forecast/Alerts views. **Layers &
+map key** starts collapsed; opening it exposes the existing visibility controls,
+source/time details, and semantic legend without changing which layers are enabled.
+Desktop retains individual frame buttons and a wider map.
+
+Radar layout guidance is pinned to **Meridian 1.5.4** at
+`../App-Design-Standards` (relative to this repository), including its adaptive profile.
+Project delta: this bounded redesign retains StormLogic's existing three top tabs,
+sky theme, plain CSS tokens, and weather-provider color conventions rather than
+migrating the whole product to Meridian's rail/bottom-navigation shell or theme.
+Browser viewport checks do not constitute installed-device qualification.
+
 Three things that will bite whoever touches this next:
 
 1. **Tile size must match.** The size in the RainViewer path and Leaflet's `tileSize` have to
@@ -297,13 +312,13 @@ tests use regexes.
 
 ## Layout
 
-Everything navigational — brand, tabs, search (with icon-only locate), units, refresh — sits on
+On Forecast and Alerts, brand, tabs, search (with icon-only locate), units, refresh sit on
 **one header row**, with saved and recent locations on a single scrolling line below it. Locate is
 icon-only (`◎`) so the search field stays elastic; the BigDataCloud privacy line expands on
 hover/focus/locating rather than always claiming a row. This was previously
 four stacked rows and pushed the weather itself off the top of a laptop screen. The search is the
 only elastic item in the row; below 900px the wordmark drops, below 680px the search wraps to its
-own line.
+own line. Radar uses the map-first variant described above.
 
 ## Saved locations
 
