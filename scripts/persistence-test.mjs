@@ -94,6 +94,7 @@ const consoleErrors = []
 page.on('pageerror', (e) => consoleErrors.push(e.message))
 page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 
+await page.route('https://api.open-meteo.com/v1/forecast?**', r => r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({current:{time:Math.floor(Date.now()/1000),temperature_2m:20,precipitation:0}})}))
 await page.route('**/api/forecast*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FORECAST) }))
 await page.route('**/geocoding-api.open-meteo.com/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(GEOCODE) }))
 
@@ -115,6 +116,7 @@ const starred = () => page.locator('.star').evaluate((n) => n.classList.contains
 
 // 1. First visit, geolocation not granted -> default city.
 await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' })
+await page.locator('.location-toggle').click()
 await page.waitForSelector('.current__place')
 check('first visit falls back to default city', await placeName(), 'Chicago, Illinois, United States')
 check('nothing saved yet', await chips('saved'), [])
@@ -130,6 +132,7 @@ check('star reflects state', await starred(), true)
 
 // 3. Reload -> location, favourite and units all restored.
 await page.reload({ waitUntil: 'networkidle' })
+await page.locator('.location-toggle').click()
 await page.waitForSelector('.current__place')
 check('location survives reload', await placeName(), 'Chicago, Illinois, United States')
 check('favourite survives reload', await chips('saved'), ['Chicago'])
@@ -152,6 +155,7 @@ check('star off for unsaved city', await starred(), false)
 
 // 5. Reload -> the *last viewed* place is restored, not the favourite.
 await page.reload({ waitUntil: 'networkidle' })
+await page.locator('.location-toggle').click()
 await page.waitForSelector('.current__place')
 check('last viewed city restored over favourite', await placeName(), 'London, England, United Kingdom')
 check('recents survive reload', await chips('recent'), ['London'])
@@ -179,6 +183,7 @@ check('saved can be removed', await chips('saved'), [])
 
 // 9. Removals persist.
 await page.reload({ waitUntil: 'networkidle' })
+await page.locator('.location-toggle').click()
 await page.waitForSelector('.current__place')
 check('removals survive reload', await chips('saved'), [])
 

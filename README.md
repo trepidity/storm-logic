@@ -334,7 +334,22 @@ Two separate lists, both in `localStorage`:
 - **Recent** — automatic. Anywhere you view lands here, newest first, capped at 6. Starring a
   recent promotes it to Saved; unstarring demotes it back rather than losing it.
 
-They share one scrolling row rather than getting a labelled row each: saved chips lead and carry a
+Saved locations also appear in a compact, horizontally scrollable weather strip below
+shared navigation in all three views. Each pill shows location, temperature in the
+chosen units, and current precipitation (Rain, Snow, Rain + snow, Dry, or unknown).
+Selecting one keeps the current view. Current model conditions come from a lightweight
+Open-Meteo current-only request, not forecast rain probability or station observations.
+The timestamp and model source are in the accessible label and tooltip. Data older
+than 30 minutes, missing values, and request failures are explicitly unavailable.
+Celsius values are cached in memory across views, converted locally on unit changes,
+and refreshed approximately every 10 minutes (two requests at a time, 12-second deadline).
+No new persistence store or navigation destination is introduced. This comparison row
+is a bounded Meridian 1.5.4 project delta: the active location repeats in its detail
+view so saved locations remain comparable while navigating. On mobile its single
+48px pill row trades about 60px of map height, preserving reachable playback.
+
+The management chips stay behind **Change location** at every width (desktop search
+remains visible). They share one scrolling row rather than getting a labelled row each: saved chips lead and carry a
 star, recents follow muted. They stay distinct in the data (`data-kind`), just not in vertical
 space.
 

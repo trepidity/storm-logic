@@ -304,8 +304,16 @@ a {
   gap: 14px;
 }
 
-.location-search, .saved-places-region { display: contents; }
-.location-toggle { display: none; }
+.location-search { display: contents; }
+.saved-places-region { display: none; }
+.app--locations-open .saved-places-region { display: block; }
+.location-toggle {
+  display: block;
+  min-height: 48px;
+  padding: 8px 12px;
+  color: var(--accent);
+  font-size: 0.875rem;
+}
 
 /* ===== Search ============================================================ */
 
@@ -2295,4 +2303,40 @@ a {
 /* Keep the shared header on one row on the narrowest supported phones. */
 @media (max-width: 360px) {
   .location-toggle { max-width: 80px; padding-inline: 4px; line-height: 1.25; }
+}
+
+/* One compact comparison row, not another destination or wrapping toolbar. */
+.saved-weather {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+}
+.saved-weather__pill {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 24px;
+  background: var(--glass);
+  color: var(--ink);
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+.saved-weather__pill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.saved-weather__pill strong { font-variant-numeric: tabular-nums; }
+.saved-weather__condition { color: var(--ink); }
+@media (max-width: 680px) {
+  .app--radar .saved-weather { padding-inline: 12px; }
+  .app--radar:has(.saved-weather) .radar__map {
+    height: max(320px, calc(100vh - 340px));
+    height: max(320px, calc(100svh - 340px));
+  }
 }

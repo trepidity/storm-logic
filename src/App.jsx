@@ -21,6 +21,7 @@ import {
 } from './lib/storage.js'
 import LocationSearch from './components/LocationSearch.jsx'
 import SavedPlaces from './components/SavedPlaces.jsx'
+import SavedWeatherStrip from './components/SavedWeatherStrip.jsx'
 import CurrentCard from './components/CurrentCard.jsx'
 import Forecast from './components/Forecast.jsx'
 import { fetchNwsWarnings, unavailableNwsWarnings } from './lib/severeDesk/adapters/nwsWarnings.js'
@@ -324,6 +325,7 @@ export default function App() {
       </header>
 
       <main className="layout">
+        <SavedWeatherStrip favorites={favorites} activeKey={activeKey} unitId={unitId} onSelect={selectPlace} />
         <div id="saved-places" className="saved-places-region">
           <SavedPlaces
             activeKey={activeKey}

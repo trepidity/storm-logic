@@ -86,6 +86,8 @@ const TARGETS = [
   ['.footer__note', 'footer hail note'],
   ['.tabs button.is-active', 'active tab'],
   ['.chip--saved .chip__main', 'saved chip'],
+  ['.saved-weather__pill', 'saved weather name'],
+  ['.saved-weather__condition', 'saved weather condition'],
   ['.chip--muted .chip__main', 'recent chip'],
   ['.tabs button:not(.is-active)', 'inactive tab'],
   ['.search__privacy', 'location privacy disclosure'],
@@ -360,7 +362,8 @@ const SEED = `(() => {
 for (const theme of themesToCheck) {
   const page = await browser.newPage({ viewport: { width: 1180, height: 1000 } })
   await page.addInitScript(SEED)
-  await page.route('**/api/forecast*', (route) =>
+  await page.route('https://api.open-meteo.com/v1/forecast?**', r => r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({current:{time:Math.floor(Date.now()/1000),temperature_2m:20,precipitation:0}})}))
+await page.route('**/api/forecast*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(makeFixture(theme.code, theme.isDay)) }),
   )
   await page.route('**/api/alerts*', (route) =>
@@ -379,6 +382,7 @@ for (const theme of themesToCheck) {
     r.fulfill({ status: 200, contentType: 'image/png', body: PIXEL }))
 
   await page.goto(`http://localhost:${serverPort}/`, { waitUntil: 'networkidle' })
+await page.locator('.location-toggle').click()
   await page.waitForSelector('.current__temp')
   await page.waitForSelector('.stat--aqi .stat__value', { timeout: 10000 })
   // Ensemble spread is deliberately lazy inside Tomorrow's detail. Open the
