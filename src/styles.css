@@ -2321,16 +2321,19 @@ a {
   .location-toggle { max-width: 80px; padding-inline: 4px; line-height: 1.25; }
 }
 
-/* One compact comparison row, not another destination or wrapping toolbar. */
+/* Saved-location comparison pills. They wrap instead of scrolling sideways —
+   a scrolled row hid pills past the right edge with no cue there were more.
+   SavedWeatherStrip caps the collapsed strip at two rows (one on radar) and
+   adds a "+N more" pill; the active location is always kept visible. */
 .saved-weather {
+  position: relative;
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: 8px;
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
   padding: 4px 2px 8px;
-  scrollbar-width: thin;
 }
 .saved-weather__pill {
   display: flex;
@@ -2353,7 +2356,31 @@ a {
 .saved-weather__pill[aria-pressed="true"] .saved-weather__condition { color: var(--ink-on-accent); }
 .saved-weather__pill strong { font-variant-numeric: tabular-nums; }
 .saved-weather__condition { color: var(--ink); }
+.saved-weather__more {
+  justify-content: center;
+  min-width: 48px;
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--glass-strong);
+  border-color: var(--stroke);
+}
+/* Hidden copies the strip measures to decide how many pills fit in two rows. */
+.saved-weather__measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: 8px;
+  visibility: hidden;
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+}
 @media (max-width: 680px) {
+  /* Compact on phones: bookmark + name + temperature. The condition stays in
+     each pill's aria-label and title. */
+  .saved-weather__condition { display: none; }
+  .saved-weather__pill { gap: 6px; padding-inline: 12px 14px; }
   .app--radar .saved-weather { padding-inline: 12px; }
   .app--radar:has(.saved-weather) .radar__map {
     height: max(320px, calc(100vh - 340px));

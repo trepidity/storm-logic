@@ -325,7 +325,13 @@ export default function App() {
       </header>
 
       <main className="layout">
-        <SavedWeatherStrip favorites={favorites} activeKey={activeKey} unitId={unitId} onSelect={selectPlace} />
+        <SavedWeatherStrip
+          favorites={favorites}
+          activeKey={activeKey}
+          unitId={unitId}
+          onSelect={selectPlace}
+          maxRows={tab === 'radar' ? 1 : 2}
+        />
         <div id="saved-places" className="saved-places-region">
           <SavedPlaces
             activeKey={activeKey}

@@ -149,7 +149,8 @@ await page.route('**/api/severeDesk/**', r=>r.fulfill({status:200,contentType:'a
 await page.setViewportSize({width:393,height:850})
 await page.getByRole('tab',{name:'Radar',exact:true}).click()
 await page.waitForSelector('.radar__play')
-check('radar retains saved strip', await page.locator('.saved-weather button').count(),4)
+check('radar retains saved strip with active place', await page.locator('.saved-weather button[aria-pressed="true"]').count(),1)
+check('radar keeps saved strip to one row', await page.locator('.saved-weather').evaluate(el => new Set([...el.querySelectorAll(':scope > button')].map(p => Math.round(p.getBoundingClientRect().top))).size), 1)
 check('radar playback within mobile viewport', await page.locator('.radar__play').evaluate(el=>el.getBoundingClientRect().bottom <= innerHeight),true)
 check('radar remains dominant', await page.locator('.radar__map').evaluate(el=>el.getBoundingClientRect().height >= 500),true)
 await page.screenshot({path:'/tmp/stormlogic-saved-weather-radar.png',fullPage:false})
@@ -214,7 +215,15 @@ check('units restore', (await page.locator('.saved-weather').innerText()).includ
 check('active place restores', await page.getByRole('button',{name:/^London,/}).getAttribute('aria-pressed'), 'true')
 for (const width of [320,393,430,768]) {
  await page.setViewportSize({width,height:850})
- check(`${width}px strip owns horizontal overflow`, await page.locator('.saved-weather').evaluate(el => el.getBoundingClientRect().right <= innerWidth && (innerWidth >= 768 || el.scrollWidth > el.clientWidth)), true)
+ // Pills wrap inside the strip (at most two rows collapsed); nothing scrolls off the right edge.
+ check(`${width}px strip wraps without horizontal overflow`, await page.locator('.saved-weather').evaluate(el => {
+  const box = el.getBoundingClientRect()
+  const pills = [...el.querySelectorAll(':scope > button')]
+  const rows = new Set(pills.map(p => Math.round(p.getBoundingClientRect().top))).size
+  return box.right <= innerWidth && el.scrollWidth <= el.clientWidth + 1 && rows <= 2 &&
+   pills.every(p => p.getBoundingClientRect().right <= box.right + 0.5) &&
+   pills.some(p => p.getAttribute('aria-pressed') === 'true')
+ }), true)
 }
 await page.setViewportSize({width:393,height:850})
 check('weather pills meet touch target', await page.locator('.saved-weather__pill').first().evaluate(el => el.getBoundingClientRect().height >= 48), true)
@@ -228,7 +237,8 @@ await page.route('**/api/severeDesk/**', r=>r.fulfill({status:200,contentType:'a
 await page.setViewportSize({width:393,height:850})
 await page.getByRole('tab',{name:'Radar',exact:true}).click()
 await page.waitForSelector('.radar__play')
-check('radar retains saved strip', await page.locator('.saved-weather button').count(),4)
+check('radar retains saved strip with active place', await page.locator('.saved-weather button[aria-pressed="true"]').count(),1)
+check('radar keeps saved strip to one row', await page.locator('.saved-weather').evaluate(el => new Set([...el.querySelectorAll(':scope > button')].map(p => Math.round(p.getBoundingClientRect().top))).size), 1)
 check('radar playback within mobile viewport', await page.locator('.radar__play').evaluate(el=>el.getBoundingClientRect().bottom <= innerHeight),true)
 check('radar remains dominant', await page.locator('.radar__map').evaluate(el=>el.getBoundingClientRect().height >= 500),true)
 await page.screenshot({path:'/tmp/stormlogic-saved-weather-radar.png',fullPage:false})

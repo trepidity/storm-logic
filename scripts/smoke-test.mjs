@@ -729,6 +729,117 @@ for (const [name, viewport] of [
   await page.close()
 }
 
+// ---- saved-location pills on a phone ----------------------------------------
+// The saved row must wrap (never scroll sideways), cap itself at two rows behind
+// a "+N more" pill, and always keep the active location visible.
+{
+  const name = 'saved-pills-390'
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  const consoleErrors = []
+  page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message}`))
+  await page.route('**/api/forecast*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture) }),
+  )
+  await page.route('**/api/air*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(airFixture) }))
+  await page.route('**/api/confidence*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(confidenceFixture) }))
+  await page.route('**/api/alerts*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(alertsFixture) }))
+  await page.route('https://api.open-meteo.com/v1/forecast?**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ current: { time: Math.floor(Date.now() / 1000), temperature_2m: 21, precipitation: 0, rain: 0, showers: 0, snowfall: 0 } }),
+    }),
+  )
+  const mk = (n, lat, lon) => ({ name: n, label: n, latitude: lat, longitude: lon, key: `${lat.toFixed(3)},${lon.toFixed(3)}` })
+  const two = [mk('Oak Grove', 39.005, -94.1291), mk('Worland', 44.0169, -107.9554)]
+  const many = [
+    ...two,
+    mk('Kansas City', 39.0997, -94.5786),
+    mk('Colorado Springs', 38.8339, -104.8214),
+    mk('Minneapolis', 44.9778, -93.265),
+    mk('Albuquerque', 35.0844, -106.6504),
+    mk('Chicago', 41.8781, -87.6298),
+    mk('Sioux Falls', 43.5446, -96.7311),
+  ]
+  const seed = async (favorites, active) => {
+    await page.goto(`http://localhost:${serverPort}/`)
+    await page.evaluate(({ favorites, active }) => {
+      localStorage.setItem('stormlogic:v1:favorites', JSON.stringify(favorites))
+      localStorage.setItem('stormlogic:v1:lastPlace', JSON.stringify(active))
+      localStorage.setItem('stormlogic:v1:hasOnboarded', 'true')
+    }, { favorites, active })
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.waitForSelector('.saved-weather > button', { timeout: 10000 })
+  }
+  const probe = () =>
+    page.locator('.saved-weather').evaluate((el) => {
+      const box = el.getBoundingClientRect()
+      const buttons = [...el.querySelectorAll(':scope > button')]
+      const pills = buttons.filter((b) => !b.classList.contains('saved-weather__more'))
+      const more = el.querySelector(':scope > .saved-weather__more')
+      return {
+        overflow: el.scrollWidth > el.clientWidth + 1 || box.right > innerWidth + 0.5,
+        pillsInside: buttons.every((b) => b.getBoundingClientRect().right <= box.right + 0.5 && b.getBoundingClientRect().left >= box.left - 0.5),
+        rows: new Set(buttons.map((b) => Math.round(b.getBoundingClientRect().top))).size,
+        pills: pills.length,
+        names: pills.map((p) => p.querySelector('.saved-weather__name')?.textContent),
+        active: pills.filter((p) => p.getAttribute('aria-pressed') === 'true').map((p) => p.querySelector('.saved-weather__name')?.textContent),
+        conditionShown: pills.some((p) => getComputedStyle(p.querySelector('.saved-weather__condition')).display !== 'none'),
+        labelsCarryCondition: pills.every((p) => {
+          const condition = p.querySelector('.saved-weather__condition')?.textContent
+          return Boolean(condition) && /, -?\d+°[CF], /.test(p.getAttribute('aria-label') || '') && p.getAttribute('aria-label').includes(condition) && p.title.includes(condition)
+        }),
+        minHeight: Math.min(...buttons.map((b) => b.getBoundingClientRect().height)),
+        more: more && { text: more.textContent.trim(), expanded: more.getAttribute('aria-expanded'), label: more.getAttribute('aria-label') },
+      }
+    })
+
+  // Two places: one row, no overflow, no "+N more".
+  await seed(two, two[0])
+  const small = await probe()
+  if (small.overflow || !small.pillsInside) failures.push(`${name}: saved row overflows horizontally with 2 places ${JSON.stringify(small)}`)
+  if (small.more) failures.push(`${name}: "+N more" should not appear for 2 places`)
+  if (small.pills !== 2) failures.push(`${name}: expected 2 saved pills, got ${small.pills}`)
+  if (small.conditionShown) failures.push(`${name}: condition text should be hidden on phones (kept in aria-label)`)
+  if (!small.labelsCarryCondition) failures.push(`${name}: pill aria-labels must still include temperature and condition`)
+  if (small.minHeight < 44) failures.push(`${name}: saved pills below 44px tap target (${small.minHeight})`)
+
+  // Eight places with the LAST one active: collapsed to two rows, active still shown.
+  await seed(many, many[many.length - 1])
+  const collapsed = await probe()
+  if (collapsed.overflow || !collapsed.pillsInside) failures.push(`${name}: saved row overflows horizontally when collapsed ${JSON.stringify(collapsed)}`)
+  if (collapsed.rows > 2) failures.push(`${name}: collapsed saved row uses ${collapsed.rows} rows, expected ≤ 2`)
+  if (!collapsed.more || !/^\+\d+ more$/.test(collapsed.more.text) || collapsed.more.expanded !== 'false') {
+    failures.push(`${name}: expected a collapsed "+N more" pill, got ${JSON.stringify(collapsed.more)}`)
+  } else if (Number(collapsed.more.text.match(/\d+/)[0]) !== many.length - collapsed.pills) {
+    failures.push(`${name}: "+N more" count ${collapsed.more.text} does not match hidden places (${many.length - collapsed.pills})`)
+  }
+  if (JSON.stringify(collapsed.active) !== JSON.stringify(['Sioux Falls'])) {
+    failures.push(`${name}: active location must stay visible when collapsed, got ${JSON.stringify(collapsed.active)}`)
+  }
+  if (collapsed.minHeight < 44) failures.push(`${name}: collapsed pills below 44px tap target (${collapsed.minHeight})`)
+
+  await page.locator('.saved-weather > button.saved-weather__more').click()
+  const expanded = await probe()
+  if (expanded.pills !== many.length) failures.push(`${name}: expanded row should show all ${many.length} places, got ${expanded.pills}`)
+  if (expanded.overflow || !expanded.pillsInside) failures.push(`${name}: expanded saved row overflows horizontally`)
+  if (!expanded.more || expanded.more.text !== 'Show less' || expanded.more.expanded !== 'true') {
+    failures.push(`${name}: expanded row needs a "Show less" pill, got ${JSON.stringify(expanded.more)}`)
+  }
+  if (JSON.stringify(expanded.names) !== JSON.stringify(many.map((p) => p.name))) {
+    failures.push(`${name}: expanded row should keep saved order, got ${JSON.stringify(expanded.names)}`)
+  }
+
+  await page.locator('.saved-weather > button.saved-weather__more').click()
+  const recollapsed = await probe()
+  if (recollapsed.pills !== collapsed.pills || recollapsed.rows > 2 || recollapsed.more?.expanded !== 'false') {
+    failures.push(`${name}: "Show less" should restore the collapsed row, got ${JSON.stringify(recollapsed)}`)
+  }
+  console.log('saved pills 390:', JSON.stringify({ small: small.pills, collapsed: { pills: collapsed.pills, rows: collapsed.rows, more: collapsed.more?.text }, expanded: expanded.pills }))
+  if (consoleErrors.length) failures.push(`${name}: ${consoleErrors.join('; ')}`)
+  await page.close()
+}
+
 await browser.close()
 server.close()
 
