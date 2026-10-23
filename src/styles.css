@@ -411,7 +411,12 @@ a {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  overflow: hidden;
+  /* Up to 10 matches: scroll inside the list rather than off a phone screen. */
+  max-height: min(60vh, 460px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: rgb(14 24 42 / 0.9);
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);

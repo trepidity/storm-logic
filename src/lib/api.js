@@ -6,6 +6,7 @@ import {
 import { isUsAqiCoverage, normaliseCurrentAirQuality } from './usAqi.js'
 import { derivePrecipEvent } from './precipEvent.js'
 import { deriveTomorrowConfidence } from './forecastConfidence.js'
+import { countryCodeHint, filterResults, parsePlaceQuery } from './placeQuery.js'
 
 export { FORECAST_DAYS }
 
@@ -603,19 +604,13 @@ export async function fetchForecastConfidence({ latitude, longitude, unitId, dat
   return deriveTomorrowConfidence(payload, date)
 }
 
-export async function searchPlaces(query, signal) {
-  const trimmed = query.trim()
-  if (trimmed.length < 2) return []
+/** Rows shown in the search dropdown. */
+export const SEARCH_RESULT_LIMIT = 10
+// Open-Meteo's maximum; qualified searches filter client-side, so cast wide.
+const QUALIFIED_FETCH_COUNT = 100
 
-  const params = new URLSearchParams({
-    name: trimmed,
-    count: '6',
-    language: 'en',
-    format: 'json',
-  })
-  const payload = await getJson(`${OPEN_METEO_GEOCODE}?${params}`, signal)
-
-  return (payload.results ?? []).map((r) => ({
+function toPlace(r) {
+  return {
     id: r.id,
     name: r.name,
     latitude: r.latitude,
@@ -624,7 +619,68 @@ export async function searchPlaces(query, signal) {
     countryCode: r.country_code ?? '',
     admin1: r.admin1 ?? '',
     label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
-  }))
+  }
+}
+
+async function geocode(name, { count, countryCode } = {}, signal) {
+  const params = new URLSearchParams({
+    name,
+    count: String(count),
+    language: 'en',
+    format: 'json',
+  })
+  if (countryCode) params.set('countryCode', countryCode)
+  const payload = await getJson(`${OPEN_METEO_GEOCODE}?${params}`, signal)
+  return payload?.results ?? []
+}
+
+const sameName = (r, name) => String(r.name ?? '').toLowerCase() === name.toLowerCase()
+
+/** Stable sort: exact name matches first, otherwise keep Open-Meteo's order. */
+function exactFirst(results, name) {
+  return [...results.filter((r) => sameName(r, name)), ...results.filter((r) => !sameName(r, name))]
+}
+
+/**
+ * City search. Understands an optional state/country after the city —
+ * "Florence, OR", "Florence Oregon", "Paris, France" — by searching the city
+ * alone and filtering on admin1 / country (see placeQuery.js).
+ */
+export async function searchPlaces(query, signal) {
+  const trimmed = query.trim().replace(/\s+/g, ' ')
+  if (trimmed.length < 2) return []
+
+  const parsed = parsePlaceQuery(trimmed)
+
+  if (parsed.form === 'plain' || parsed.city.length < 2) {
+    const results = await geocode(trimmed, { count: SEARCH_RESULT_LIMIT }, signal)
+    return results.slice(0, SEARCH_RESULT_LIMIT).map(toPlace)
+  }
+
+  const qualified = geocode(
+    parsed.city,
+    { count: QUALIFIED_FETCH_COUNT, countryCode: countryCodeHint(parsed.qualifiers) },
+    signal,
+  ).then((results) => exactFirst(filterResults(results, parsed.qualifiers), parsed.city))
+
+  if (parsed.form === 'comma') {
+    return (await qualified).slice(0, SEARCH_RESULT_LIMIT).map(toPlace)
+  }
+
+  // "Florence Oregon" could also be a multi-word place name ("Little Canada",
+  // "New Mexico"…), so search the full text too. A place literally named the
+  // full text wins; then the qualified matches; then the rest of the full-text
+  // hits as a fallback.
+  const [filtered, whole] = await Promise.all([
+    qualified,
+    geocode(trimmed, { count: SEARCH_RESULT_LIMIT }, signal),
+  ])
+  const merged = [...whole.filter((r) => sameName(r, trimmed)), ...filtered, ...whole]
+  const seen = new Set()
+  return merged
+    .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
+    .slice(0, SEARCH_RESULT_LIMIT)
+    .map(toPlace)
 }
 
 /** BigDataCloud appends " (the)" to some country names; strip for readable labels. */
