@@ -7,6 +7,7 @@ import WindDial from './WindDial.jsx'
 import SunArc from './SunArc.jsx'
 import HourlyStrip from './HourlyStrip.jsx'
 import AqiStat from './AqiStat.jsx'
+import BookmarkIcon from './BookmarkIcon.jsx'
 
 export default function CurrentCard({
   place,
@@ -30,25 +31,25 @@ export default function CurrentCard({
     <section className="current" aria-label="Current conditions">
       <header className="current__head">
         <div className="current__identity">
-          <div className="current__title">
-            <h1 className="current__place">{place.label}</h1>
-            <button
-              type="button"
-              className={`star ${isFavorite ? 'star--on' : ''}`}
-              onClick={onToggleFavorite}
-              aria-pressed={isFavorite}
-              title={isFavorite ? 'Remove from saved locations' : 'Save this location'}
-            >
-              <span aria-hidden="true">{isFavorite ? '★' : '☆'}</span>
-              <span className="visually-hidden">
-                {isFavorite ? `Remove ${place.name} from saved locations` : `Save ${place.name}`}
-              </span>
-            </button>
-          </div>
+          <h1 className="current__place">{place.label}</h1>
           <p className="current__meta">
             Local time {formatClock(current.time)}
             {timezone ? <span className="current__tz"> · {timezone.replace(/_/g, ' ')}</span> : null}
           </p>
+          {/* Labeled save toggle: lives with the location identity, not beside the
+              weather icon, and says "Saved" / "Save" in words rather than
+              relying on a bare star. */}
+          <button
+            type="button"
+            className={`save-toggle ${isFavorite ? 'save-toggle--on' : ''}`}
+            onClick={onToggleFavorite}
+            aria-pressed={Boolean(isFavorite)}
+            aria-label={isFavorite ? `Saved: ${place.name}` : `Save ${place.name}`}
+            title={isFavorite ? 'Saved — tap to remove from saved locations' : 'Save this location'}
+          >
+            <BookmarkIcon filled={Boolean(isFavorite)} className="save-toggle__icon" />
+            <span className="save-toggle__label">{isFavorite ? 'Saved' : 'Save'}</span>
+          </button>
         </div>
         <span className="current__icon" aria-hidden="true">
           {iconFor(current.weatherCode, current.isDay)}

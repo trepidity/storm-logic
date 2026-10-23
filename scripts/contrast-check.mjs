@@ -86,6 +86,7 @@ const TARGETS = [
   ['.footer__note', 'footer hail note'],
   ['.tabs button.is-active', 'active tab'],
   ['.chip--saved .chip__main', 'saved chip'],
+  ['.save-toggle', 'save location toggle'],
   ['.saved-weather__pill', 'saved weather name'],
   ['.saved-weather__condition', 'saved weather condition'],
   ['.chip--muted .chip__main', 'recent chip'],

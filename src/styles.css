@@ -518,9 +518,10 @@ a {
   color: var(--ink);
 }
 
-.chip__star {
-  font-size: 0.72rem;
-  color: var(--sun-glow);
+.chip__saved-icon {
+  width: 13px;
+  height: 13px;
+  color: var(--accent);
 }
 
 .chip--muted .chip__main {
@@ -597,45 +598,60 @@ a {
   }
 }
 
-/* ===== Favorite toggle =================================================== */
+/* ===== Save toggle ======================================================= */
+
+/* The saved state is a labeled pill under the location name, not a bare star
+   beside the weather icon — on a phone the name wraps and a lone star ended up
+   floating next to the condition glyph, reading as weather rather than state.
+   Unsaved: quiet outline "Save". Saved: filled accent "Saved". >=44px tall. */
 
 .current__identity {
   min-width: 0;
 }
 
-.current__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.bookmark-icon {
+  flex: none;
+  display: block;
 }
 
-.star {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  flex: none;
-  font-size: 1.15rem;
+.save-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  margin-top: 10px;
+  padding: 8px 16px 8px 13px;
+  font-size: 0.9rem;
+  font-weight: 650;
   line-height: 1;
-  color: var(--ink-faint);
-  border-radius: 50%;
+  color: var(--ink);
+  background: var(--glass-strong);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
   transition:
     color 200ms var(--ease),
     background 200ms var(--ease),
-    transform 200ms var(--ease);
+    border-color 200ms var(--ease);
 }
 
-.star:hover {
-  color: var(--ink);
-  background: var(--surface-2);
+.save-toggle:hover {
+  border-color: var(--ink-faint);
 }
 
-.star--on {
-  color: var(--sun-glow);
+.save-toggle--on {
+  color: var(--ink-on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
-.star--on:hover {
-  transform: scale(1.08);
+.save-toggle--on:hover {
+  border-color: var(--ink);
+}
+
+.save-toggle__icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* ===== Radar ============================================================= */
@@ -2330,7 +2346,11 @@ a {
   white-space: nowrap;
   font-size: 0.875rem;
 }
-.saved-weather__pill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.saved-weather__icon { width: 14px; height: 14px; color: var(--accent); }
+/* The location on screen gets a filled state, not just a tinted outline. */
+.saved-weather__pill[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--ink-on-accent); }
+.saved-weather__pill[aria-pressed="true"] .saved-weather__icon,
+.saved-weather__pill[aria-pressed="true"] .saved-weather__condition { color: var(--ink-on-accent); }
 .saved-weather__pill strong { font-variant-numeric: tabular-nums; }
 .saved-weather__condition { color: var(--ink); }
 @media (max-width: 680px) {

@@ -372,18 +372,22 @@ for (const [name, viewport] of [
   // tabs, radar and favourite-toggle rules were gone from the build.
   const styling = await page.evaluate(() => {
     const bg = (sel) => getComputedStyle(document.querySelector(sel)).backgroundColor
-    const title = document.querySelector('.current__title')
+    const identity = document.querySelector('.current__identity').getBoundingClientRect()
     const h1 = document.querySelector('.current__place').getBoundingClientRect()
-    const star = document.querySelector('.star').getBoundingClientRect()
+    const save = document.querySelector('.save-toggle')
+    const saveBox = save.getBoundingClientRect()
     const geo = document.querySelector('.search__geo')
     const disclosure = document.querySelector('#location-disclosure')
     const geoBox = geo?.getBoundingClientRect()
     return {
       tabsHaveSurface: bg('.tabs') !== 'rgba(0, 0, 0, 0)',
       activeTabHighlighted: bg('.tabs button.is-active') !== 'rgba(0, 0, 0, 0)',
-      titleIsFlexRow: getComputedStyle(title).display === 'flex',
-      // The star sits beside the location name, not wrapped underneath it.
-      starOnSameLine: Math.abs(star.top - h1.top) < h1.height,
+      // The save toggle is a labeled pill under the location name, inside the
+      // identity column — never floating beside the weather icon.
+      saveToggleUnderTitle: saveBox.top >= h1.bottom && saveBox.right <= identity.right + 1,
+      saveToggleLabeled: /^Saved?$/.test(save.textContent.trim()) && save.hasAttribute('aria-pressed'),
+      saveToggleTapTarget: saveBox.height >= 44 && saveBox.width >= 44,
+      saveToggleHasSurface: bg('.save-toggle') !== 'rgba(0, 0, 0, 0)',
       cardHasBackground: bg('.current') !== 'rgba(0, 0, 0, 0)',
       // Icon-only: compact square control, not a wide labeled pill.
       geoIsCompact: Boolean(geoBox) && geoBox.width <= 56,

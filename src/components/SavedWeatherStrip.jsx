@@ -1,5 +1,6 @@
 import useSavedWeather from '../hooks/useSavedWeather.js'
 import { SAVED_WEATHER_MAX_AGE_MS } from '../lib/savedWeather.js'
+import BookmarkIcon from './BookmarkIcon.jsx'
 
 export default function SavedWeatherStrip({ favorites, activeKey, unitId, onSelect }) {
   const weather = useSavedWeather(favorites)
@@ -21,6 +22,7 @@ export default function SavedWeatherStrip({ favorites, activeKey, unitId, onSele
             aria-pressed={activeKey === place.key}
             aria-label={`${place.label || place.name}, ${temperature}, ${condition}. ${detail}`}
             title={`${place.label || place.name} · ${detail}`} onClick={() => onSelect(place)}>
+            <BookmarkIcon filled className="saved-weather__icon" />
             <span className="saved-weather__name">{place.name}</span>
             <strong>{temperature}</strong>
             <span className="saved-weather__condition">{condition}</span>

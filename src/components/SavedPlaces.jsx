@@ -1,10 +1,12 @@
+import BookmarkIcon from './BookmarkIcon.jsx'
+
 /**
  * Saved and recent locations, on one scrolling line.
  *
  * They remain two distinct lists — favorites are things the user chose to keep,
  * recents are churn, and merging them would let a city looked up once push a
  * home city out of view. But they no longer get a labelled row each: saved
- * chips lead, carry a star, and are visually stronger; recents follow, muted.
+ * chips lead, carry a filled bookmark, and are visually stronger; recents follow, muted.
  * That reads at a glance and costs one row instead of two.
  */
 function Chip({ place, kind, active, onSelect, onRemove }) {
@@ -21,9 +23,7 @@ function Chip({ place, kind, active, onSelect, onRemove }) {
         aria-label={`Show weather for ${place.name}${saved ? ', saved' : ''}`}
       >
         {saved ? (
-          <span className="chip__star" aria-hidden="true">
-            ★
-          </span>
+          <BookmarkIcon filled className="chip__saved-icon" />
         ) : null}
         {place.name}
       </button>

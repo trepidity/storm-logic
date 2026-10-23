@@ -109,10 +109,17 @@ function check(name, actual, expected) {
 // by a labelled group heading.
 const chips = (kind) =>
   page.$$eval(`.chip[data-kind="${kind}"] .chip__main`, (ns) =>
-    ns.map((n) => n.textContent.replace('★', '').trim()))
+    ns.map((n) => n.textContent.trim()))
 
 const placeName = () => page.locator('.current__place').textContent()
-const starred = () => page.locator('.star').evaluate((n) => n.classList.contains('star--on'))
+const starred = async () => {
+  const toggle = page.locator('.save-toggle')
+  const pressed = (await toggle.getAttribute('aria-pressed')) === 'true'
+  const label = (await toggle.textContent()).trim()
+  // Visible text must agree with the pressed state, not just a colour change.
+  if (label !== (pressed ? 'Saved' : 'Save')) return `mismatch: pressed=${pressed} label=${label}`
+  return pressed
+}
 
 // 1. First visit, geolocation not granted -> default city.
 await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' })
@@ -124,7 +131,7 @@ check('nothing recent yet', await chips('recent'), [])
 check('star starts off', await starred(), false)
 
 // 2. Star it, switch units.
-await page.locator('.star').click()
+await page.locator('.save-toggle').click()
 await page.locator('.unit-toggle button', { hasText: '°C' }).click()
 await page.waitForTimeout(200)
 check('starring adds to saved', await chips('saved'), ['Chicago'])
@@ -161,13 +168,13 @@ check('last viewed city restored over favourite', await placeName(), 'London, En
 check('recents survive reload', await chips('recent'), ['London'])
 
 // 6. Starring a recent promotes it out of recents.
-await page.locator('.star').click()
+await page.locator('.save-toggle').click()
 await page.waitForTimeout(200)
 check('starring promotes out of recents', await chips('recent'), [])
 check('both cities now saved', await chips('saved'), ['Chicago', 'London'])
 
 // 7. Unstarring demotes back to recents rather than losing it.
-await page.locator('.star').click()
+await page.locator('.save-toggle').click()
 await page.waitForTimeout(200)
 check('unstarring demotes to recents', await chips('recent'), ['London'])
 check('saved list shrinks', await chips('saved'), ['Chicago'])
