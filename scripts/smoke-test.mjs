@@ -372,7 +372,7 @@ for (const [name, viewport] of [
   // tabs, radar and favourite-toggle rules were gone from the build.
   const styling = await page.evaluate(() => {
     const bg = (sel) => getComputedStyle(document.querySelector(sel)).backgroundColor
-    const identity = document.querySelector('.current__identity').getBoundingClientRect()
+    const head = document.querySelector('.current__head').getBoundingClientRect()
     const h1 = document.querySelector('.current__place').getBoundingClientRect()
     const save = document.querySelector('.save-toggle')
     const saveBox = save.getBoundingClientRect()
@@ -382,9 +382,15 @@ for (const [name, viewport] of [
     return {
       tabsHaveSurface: bg('.tabs') !== 'rgba(0, 0, 0, 0)',
       activeTabHighlighted: bg('.tabs button.is-active') !== 'rgba(0, 0, 0, 0)',
-      // The save toggle is a labeled pill under the location name, inside the
-      // identity column — never floating beside the weather icon.
-      saveToggleUnderTitle: saveBox.top >= h1.bottom && saveBox.right <= identity.right + 1,
+      // The save toggle is a labeled pill in the card header's top-right
+      // corner, beside the title; the weather glyph lives with the condition.
+      saveToggleTopRight:
+        Boolean(save.closest('.current__head')) &&
+        saveBox.left >= h1.right - 1 &&
+        head.right - saveBox.right <= 2 &&
+        saveBox.top - head.top <= 8,
+      weatherIconWithCondition: Boolean(document.querySelector('.current__condition .current__icon')) &&
+        !document.querySelector('.current__head .current__icon'),
       saveToggleLabeled: /^Saved?$/.test(save.textContent.trim()) && save.hasAttribute('aria-pressed'),
       saveToggleTapTarget: saveBox.height >= 44 && saveBox.width >= 44,
       saveToggleHasSurface: bg('.save-toggle') !== 'rgba(0, 0, 0, 0)',
@@ -836,6 +842,80 @@ for (const [name, viewport] of [
     failures.push(`${name}: "Show less" should restore the collapsed row, got ${JSON.stringify(recollapsed)}`)
   }
   console.log('saved pills 390:', JSON.stringify({ small: small.pills, collapsed: { pills: collapsed.pills, rows: collapsed.rows, more: collapsed.more?.text }, expanded: expanded.pills }))
+  if (consoleErrors.length) failures.push(`${name}: ${consoleErrors.join('; ')}`)
+  await page.close()
+}
+
+// ---- compact current card on a phone ---------------------------------------
+// Save sits top-right in the card header, cloud cover and wind share a row as
+// compact tiles, unit/refresh share a row with the precip badge, and nothing
+// overflows horizontally.
+{
+  const name = 'compact-current-390'
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  const consoleErrors = []
+  page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message}`))
+  await page.route('**/api/forecast*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture) }),
+  )
+  await page.route('**/api/air*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(airFixture) }))
+  await page.route('**/api/confidence*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(confidenceFixture) }))
+  await page.route('**/api/alerts*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(alertsFixture) }))
+  await page.goto(`http://localhost:${serverPort}/`, { waitUntil: 'networkidle' })
+  await page.waitForSelector('.current__temp', { timeout: 10000 })
+  const m = await page.evaluate(() => {
+    const r = (sel) => document.querySelector(sel)?.getBoundingClientRect()
+    const card = r('.current')
+    const head = r('.current__head')
+    const save = r('.save-toggle')
+    const h1 = r('.current__place')
+    const cloud = r('.panel--cloud')
+    const wind = r('.panel--wind')
+    const sun = r('.panel--sun')
+    const unit = r('.forecast-controls')
+    const badge = r('.current__toolbar .badges')
+    // The hourly strip scrolls sideways by design; check the card's own blocks.
+    const overflowing = [...document.querySelectorAll('.current__head, .current__head *, .current__hero, .current__hero *, .current__panels > .panel, .panel--hourly, .stats')]
+      .filter((n) => { const b = n.getBoundingClientRect(); return b.width > 0 && b.right > innerWidth + 0.5 })
+      .map((n) => n.className?.baseVal ?? n.className)
+    return {
+      saveInHeaderTopRight: Boolean(save && head) && save.right > card.left + card.width * 0.6 && head.right - save.right <= 2 && save.top - head.top <= 8 && save.left >= h1.right - 1,
+      saveTapTarget: save.height >= 44 && save.width >= 44,
+      cloudWindShareRow: Math.abs(cloud.top - wind.top) < 2 && cloud.right <= wind.left && cloud.width < card.width * 0.6,
+      sunBelowFullWidth: sun.top >= cloud.bottom && sun.width > cloud.width * 1.8,
+      // Controls share the badge row whenever both fit; they only wrap when the
+      // badges themselves need the width (e.g. rain + hail on a storm day).
+      controlsInlineWithBadge:
+        unit.top < badge.bottom ||
+        badge.width + unit.width + 12 > r('.current__toolbar').width,
+      noHorizontalOverflow: document.documentElement.scrollWidth <= innerWidth && overflowing.length === 0,
+      ...(() => {
+        // Cloud + wind tiles: one-line labels on a shared baseline, equal heights,
+        // graphic on the left with the reading vertically centred beside it.
+        const lab = (p) => document.querySelector(`${p} .metric__label`)?.getBoundingClientRect()
+        const cl = lab('.panel--cloud'), wl = lab('.panel--wind')
+        const ring = r('.panel--cloud .cloud__ring'), desc = r('.panel--cloud .cloud__desc')
+        const dial = r('.panel--wind .wind__dial'), wtext = r('.panel--wind .wind__readout')
+        const mid = (b) => b.top + b.height / 2
+        return {
+          tileLabelsOneLineSameTop: Boolean(cl && wl) && cl.height < 24 && wl.height < 24 && Math.abs(cl.top - wl.top) < 1.5,
+          tilesEqualHeight: Math.abs(cloud.height - wind.height) < 1,
+          cloudGraphicLeftReadingCentred: Boolean(ring && desc) && desc.left >= ring.right && Math.abs(mid(desc) - mid(ring)) < 4,
+          windGraphicLeftReadingCentred: Boolean(dial && wtext) && wtext.left >= dial.right && Math.abs(mid(wtext) - mid(dial)) < 4,
+        }
+      })(),
+      overflowing,
+    }
+  })
+  await page.setViewportSize({ width: 320, height: 700 })
+  m.tilesFitAt320 = await page.evaluate(() => [...document.querySelectorAll('.panel--cloud, .panel--cloud *, .panel--wind, .panel--wind *')]
+    .every((n) => { const b = n.getBoundingClientRect(); const t = n.closest('.panel').getBoundingClientRect(); return b.width === 0 || (b.right <= t.right + 0.5 && b.left >= t.left - 0.5) }))
+  for (const [key, ok] of Object.entries(m)) {
+    if (key !== 'overflowing' && !ok) failures.push(`${name}: ${key} failed ${key === 'noHorizontalOverflow' ? JSON.stringify(m.overflowing) : ''}`)
+  }
+  const tapTargets = await page.$$eval('.forecast-controls button', (ns) => ns.map((n) => { const b = n.getBoundingClientRect(); return [b.width, b.height] }))
+  if (tapTargets.some(([w, h]) => w < 44 || h < 44)) failures.push(`${name}: unit/refresh tap targets under 44px ${JSON.stringify(tapTargets)}`)
+  console.log('compact current 390:', JSON.stringify(m))
   if (consoleErrors.length) failures.push(`${name}: ${consoleErrors.join('; ')}`)
   await page.close()
 }

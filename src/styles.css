@@ -605,9 +605,9 @@ a {
 
 /* ===== Save toggle ======================================================= */
 
-/* The saved state is a labeled pill under the location name, not a bare star
-   beside the weather icon — on a phone the name wraps and a lone star ended up
-   floating next to the condition glyph, reading as weather rather than state.
+/* The saved state is a labeled pill in the card header's top-right corner,
+   not a bare star. The weather glyph moved down beside the condition text, so
+   the pill never sits next to it and reads as state, not weather.
    Unsaved: quiet outline "Save". Saved: filled accent "Saved". >=44px tall. */
 
 .current__identity {
@@ -625,7 +625,7 @@ a {
   gap: 8px;
   min-height: 44px;
   min-width: 44px;
-  margin-top: 10px;
+  flex: none;
   padding: 8px 16px 8px 13px;
   font-size: 0.9rem;
   font-weight: 650;
@@ -1390,7 +1390,7 @@ a {
 }
 
 .current__icon {
-  font-size: 3rem;
+  font-size: 1.6em;
   line-height: 1;
   filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.28));
 }
@@ -1440,8 +1440,23 @@ a {
 }
 
 .current__condition {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 1.1rem;
   font-weight: 600;
+}
+
+/* Precip badge on the left, unit toggle + refresh on the right, one row. */
+.current__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.current__toolbar .forecast-controls {
+  margin-top: 0;
 }
 
 .current__feels,
@@ -1517,8 +1532,9 @@ a {
 
 /* ===== Panels ============================================================ */
 
-/* Three panels, three columns — collapsing straight to one keeps the count a
-   clean divisor at every width, so no panel is ever stranded on its own row. */
+/* Three panels, three columns on desktop. Below 900px cloud cover and wind
+   become two compact tiles side by side and Sun spans the full row beneath,
+   so no panel is stranded and phones don't stack three full-width cards. */
 .current__panels {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1528,7 +1544,10 @@ a {
 
 @media (max-width: 900px) {
   .current__panels {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .current__panels .panel--sun {
+    grid-column: 1 / -1;
   }
 }
 
@@ -2391,4 +2410,55 @@ a {
     height: max(320px, calc(100vh - 340px));
     height: max(320px, calc(100svh - 340px));
   }
+}
+
+/* ===== Compact current card on phones ==================================== */
+@media (max-width: 680px) {
+  .current__head { gap: 12px; }
+  .current__place { font-size: 1.15rem; line-height: 1.25; }
+  .current__meta { font-size: 0.8rem; }
+  .current__hero { margin: 8px 0 12px; gap: 10px; }
+  .current__hero .current__reading { margin: 0 0 12px; gap: 16px; flex-wrap: nowrap; justify-content: space-between; }
+  .current__temp { font-size: clamp(3.75rem, 17vw, 4.75rem); }
+  .current__summary { text-align: right; }
+  .current__condition { justify-content: flex-end; }
+  .current__precip-timing { margin-top: 8px; }
+
+  .current__panels { gap: 10px; margin: 12px 0 10px; }
+  .current__panels .panel { padding: 12px; gap: 8px; }
+  .current__toolbar { justify-content: space-between; }
+  /* Cloud and wind tiles share one inner layout: one-line label on top, then
+     a 48px graphic with its reading vertically centered to the right. */
+  .current__panels .panel--cloud,
+  .current__panels .panel--wind { padding: 12px 10px; justify-content: flex-start; }
+  .panel--cloud .cloud__caption-suffix { display: none; }
+  .panel--cloud .cloud {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+  .panel--cloud .cloud__text { display: contents; }
+  .panel--cloud .metric__label { grid-column: 1 / -1; grid-row: 1; white-space: nowrap; }
+  .panel--cloud .cloud__ring { grid-row: 2; width: 48px; height: 48px; }
+  .panel--cloud .cloud__desc { grid-row: 2; font-size: 0.95rem; line-height: 1.25; overflow-wrap: anywhere; }
+  .panel--cloud .cloud__percent { font-size: 0.8rem; }
+  .panel--wind .metric__label { white-space: nowrap; }
+  .panel--wind .wind { gap: 8px; align-items: center; }
+  .panel--wind .wind__dial { width: 48px; height: 48px; flex: none; }
+  .panel--wind .wind__from { white-space: nowrap; }
+  .panel--wind .wind__gusts strong { white-space: nowrap; }
+  .panel--wind .wind__readout { min-width: 0; }
+  .panel--wind .wind__speed { font-size: 1.05rem; line-height: 1.2; }
+  .panel--wind .wind__from,
+  .panel--wind .wind__gusts { font-size: 0.75rem; line-height: 1.3; }
+}
+
+/* Very narrow phones: stack graphic above centered reading in both tiles. */
+@media (max-width: 360px) {
+  .panel--cloud .cloud { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+  .panel--cloud .metric__label { justify-self: start; }
+  .panel--cloud .cloud__desc { grid-row: 3; }
+  .panel--wind .wind { flex-direction: column; text-align: center; }
+  .panel--wind .wind__from { white-space: normal; }
 }

@@ -36,24 +36,22 @@ export default function CurrentCard({
             Local time {formatClock(current.time)}
             {timezone ? <span className="current__tz"> · {timezone.replace(/_/g, ' ')}</span> : null}
           </p>
-          {/* Labeled save toggle: lives with the location identity, not beside the
-              weather icon, and says "Saved" / "Save" in words rather than
-              relying on a bare star. */}
-          <button
-            type="button"
-            className={`save-toggle ${isFavorite ? 'save-toggle--on' : ''}`}
-            onClick={onToggleFavorite}
-            aria-pressed={Boolean(isFavorite)}
-            aria-label={isFavorite ? `Saved: ${place.name}` : `Save ${place.name}`}
-            title={isFavorite ? 'Saved — tap to remove from saved locations' : 'Save this location'}
-          >
-            <BookmarkIcon filled={Boolean(isFavorite)} className="save-toggle__icon" />
-            <span className="save-toggle__label">{isFavorite ? 'Saved' : 'Save'}</span>
-          </button>
         </div>
-        <span className="current__icon" aria-hidden="true">
-          {iconFor(current.weatherCode, current.isDay)}
-        </span>
+        {/* Labeled save toggle in the header's top-right corner. It says
+          "Saved" / "Save" in words rather than relying on a bare star; the
+          weather glyph lives with the condition text below, so the two
+          never read as one indicator. */}
+        <button
+          type="button"
+          className={`save-toggle ${isFavorite ? 'save-toggle--on' : ''}`}
+          onClick={onToggleFavorite}
+          aria-pressed={Boolean(isFavorite)}
+          aria-label={isFavorite ? `Saved: ${place.name}` : `Save ${place.name}`}
+          title={isFavorite ? 'Saved — tap to remove from saved locations' : 'Save this location'}
+        >
+          <BookmarkIcon filled={Boolean(isFavorite)} className="save-toggle__icon" />
+          <span className="save-toggle__label">{isFavorite ? 'Saved' : 'Save'}</span>
+        </button>
       </header>
 
       <div className="current__hero">
@@ -64,10 +62,14 @@ export default function CurrentCard({
                 {formatTemp(current.temperature, units)}
                 <span className="current__unit">{units.symbol}</span>
               </p>
-              {controls}
             </div>
             <div className="current__summary">
-              <p className="current__condition">{condition.label}</p>
+              <p className="current__condition">
+                <span className="current__icon" aria-hidden="true">
+                  {iconFor(current.weatherCode, current.isDay)}
+                </span>
+                {condition.label}
+              </p>
               <p className="current__feels">Feels like {formatTemp(current.feelsLike, units)}</p>
               {today ? (
                 <p className="current__range">
@@ -77,14 +79,19 @@ export default function CurrentCard({
             </div>
           </div>
 
-          <ConditionBadges
-            code={current.weatherCode}
-            rain={current.rain}
-            showers={current.showers}
-            snow={current.snowfall}
-            units={units}
-            size="lg"
-          />
+          {/* Precip badge and unit/refresh controls share one row instead of
+              each taking a full row of their own. */}
+          <div className="current__toolbar">
+            <ConditionBadges
+              code={current.weatherCode}
+              rain={current.rain}
+              showers={current.showers}
+              snow={current.snowfall}
+              units={units}
+              size="lg"
+            />
+            {controls}
+          </div>
 
           {timing ? (
             <p className="current__precip-timing" role="status">
@@ -105,11 +112,11 @@ export default function CurrentCard({
       </div>
 
       <div className="current__panels">
-        <div className="panel">
-          <CloudMeter percent={current.cloudCover} caption="Cloud cover now" />
+        <div className="panel panel--cloud">
+          <CloudMeter percent={current.cloudCover} caption="Cloud cover" captionSuffix=" now" />
         </div>
 
-        <div className="panel">
+        <div className="panel panel--wind">
           <span className="metric__label">Wind</span>
           <WindDial
             direction={current.windDirection}
@@ -119,7 +126,7 @@ export default function CurrentCard({
           />
         </div>
 
-        <div className="panel">
+        <div className="panel panel--sun">
           <span className="metric__label">Sun</span>
           {today ? (
             <SunArc
