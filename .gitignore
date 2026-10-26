@@ -8,3 +8,7 @@ dist
 
 # Staging area for files the remote-device bridge cannot delete (git lock files).
 _to_delete
+
+# CodeGraph local index and machine-specific config
+.codegraph/
+.cursor/mcp.json
