@@ -185,7 +185,12 @@ export default function RadarPanel({ place, alert = null, officialLayerStates = 
       markerZoomAnimation: false,
     }).setView([place.latitude, place.longitude], START_ZOOM)
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // CARTO basemaps key (free tier) removes the unauthenticated-use
+    // watermark. Vite inlines it at build time, so it is public by design;
+    // restrict it to the site's domain in the CARTO dashboard.
+    const cartoKey = import.meta.env.VITE_CARTO_BASEMAPS_KEY
+    const cartoKeyParam = cartoKey ? `?key=${encodeURIComponent(cartoKey)}` : ''
+    L.tileLayer(`https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png${cartoKeyParam}`, {
       subdomains: 'abcd',
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap, &copy; CARTO',

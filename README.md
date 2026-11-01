@@ -109,8 +109,11 @@ netlify deploy --build --prod
 ```
 
 Or connect the repo in the Netlify UI; `netlify.toml` already sets the build command (`npm run
-build`), publish directory (`dist`), and Node version. There are no environment variables to
-configure — Open-Meteo needs no key.
+build`), publish directory (`dist`), and Node version. Open-Meteo needs no key. The one optional
+build-time variable is `VITE_CARTO_BASEMAPS_KEY`: a free CARTO basemaps key appended to the
+radar basemap tile URL to drop CARTO's unauthenticated-use watermark. Vite inlines it into the
+public bundle, so restrict it to the site's domain in the CARTO dashboard. Without it, tiles load
+keyless as before.
 
 ### Why there's a serverless function
 
