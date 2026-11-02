@@ -24,6 +24,9 @@ import SavedPlaces from './components/SavedPlaces.jsx'
 import SavedWeatherStrip from './components/SavedWeatherStrip.jsx'
 import CurrentCard from './components/CurrentCard.jsx'
 import Forecast from './components/Forecast.jsx'
+import SwipeIndicator from './components/SwipeIndicator.jsx'
+import useSwipeNavigation, { useMediaQuery } from './hooks/useSwipeNavigation.js'
+import { SWIPE_MEDIA_QUERY, stepIndex } from './lib/swipe.js'
 import { fetchNwsWarnings, unavailableNwsWarnings } from './lib/severeDesk/adapters/nwsWarnings.js'
 import { unavailableSpcOutlook } from './lib/severeDesk/adapters/spcOutlook.js'
 import { fetchSpcOutlook } from './lib/severeDesk/clients/spcOutlookClient.js'
@@ -69,6 +72,11 @@ export default function App() {
 
   const units = UNIT_PRESETS[unitId]
   const abortRef = useRef(null)
+  // Swipe between saved locations (mobile). `swipeMotion` drives the cue:
+  // 'leave' while the swiped-to forecast loads, 'enter' once it has arrived.
+  const swipePanelRef = useRef(null)
+  const pendingSwipeRef = useRef(null)
+  const [swipeMotion, setSwipeMotion] = useState(null)
   const activeKey = place ? place.key : null
   const officialDeskRegion = useMemo(() => resolveOfficialDeskRegion(place), [place])
   const officialDeskRegionKey = useMemo(() => {
@@ -142,8 +150,16 @@ export default function App() {
       )
       setData(next)
       setStatus('ready')
+      if (pendingSwipeRef.current?.key === place.key) {
+        setSwipeMotion({ phase: 'enter', direction: pendingSwipeRef.current.direction })
+        pendingSwipeRef.current = null
+      }
     } catch (err) {
       if (err.name === 'AbortError') return
+      if (pendingSwipeRef.current?.key === place.key) {
+        pendingSwipeRef.current = null
+        setSwipeMotion(null)
+      }
       setError(err.message || 'Could not load the forecast.')
       setStatus('error')
     }
@@ -226,6 +242,9 @@ export default function App() {
     const normalised = normalisePlace(next)
     if (!normalised) return
     userChoseRef.current = true
+    // Any selection supersedes an in-flight swipe cue; swipeToSaved re-arms it.
+    pendingSwipeRef.current = null
+    setSwipeMotion(null)
     setRadarAlert(null)
     setPlace(normalised)
 
@@ -254,6 +273,24 @@ export default function App() {
     })
     setRecents((prev) => prev.filter((p) => p.key !== place.key))
   }
+
+  // --- swipe between saved locations ------------------------------------
+  // Mobile only, forecast view only, and only with two or more saved places.
+  // It reuses selectPlace, so it behaves exactly like tapping a saved pill.
+  const isSwipeDevice = useMediaQuery(SWIPE_MEDIA_QUERY)
+  const swipeEnabled = isSwipeDevice && favorites.length >= 2 && tab === 'forecast' && Boolean(data)
+  const activeFavoriteIndex = favorites.findIndex((f) => f.key === activeKey)
+
+  function swipeToSaved(direction) {
+    const index = stepIndex(activeFavoriteIndex, favorites.length, direction)
+    const target = favorites[index]
+    if (!target || target.key === activeKey) return
+    selectPlace(target)
+    pendingSwipeRef.current = { key: target.key, direction }
+    setSwipeMotion({ phase: 'leave', direction })
+  }
+
+  useSwipeNavigation(swipePanelRef, { enabled: swipeEnabled, onSwipe: swipeToSaved })
 
   const removeFavorite = (key) => setFavorites((prev) => prev.filter((f) => f.key !== key))
   const removeRecent = (key) => setRecents((prev) => prev.filter((p) => p.key !== key))
@@ -366,41 +403,57 @@ export default function App() {
         ) : null}
 
         {tab === 'forecast' && data && place ? (
-          <div role="tabpanel" id="panel-forecast" aria-labelledby="tab-forecast" className="panelgroup">
-            <CurrentCard
-              place={place}
-              current={data.current}
-              today={data.days[0]}
-              hours={data.hours}
-              precipLast24h={data.precipLast24h}
-              precipEvent={data.precipEvent}
-              units={units}
-              timezone={data.timezone}
-              isFavorite={isFavorite}
-              onToggleFavorite={toggleFavorite}
-              controls={
-                <div className="forecast-controls">
-                  <div className="unit-toggle" role="group" aria-label="Temperature units">
-                    {Object.values(UNIT_PRESETS).map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        className={preset.id === unitId ? 'is-active' : ''}
-                        aria-pressed={preset.id === unitId}
-                        onClick={() => setUnitId(preset.id)}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
+          <div
+            ref={swipePanelRef}
+            role="tabpanel"
+            id="panel-forecast"
+            aria-labelledby="tab-forecast"
+            className={`panelgroup ${swipeEnabled ? 'panelgroup--swipeable' : ''}`}
+          >
+            {swipeEnabled ? <SwipeIndicator favorites={favorites} activeIndex={activeFavoriteIndex} /> : null}
+            <div
+              className={`panelgroup swipe-stage ${
+                swipeMotion ? `swipe-stage--${swipeMotion.phase}-${swipeMotion.direction}` : ''
+              }`}
+              onAnimationEnd={(event) => {
+                if (event.target === event.currentTarget && swipeMotion?.phase === 'enter') setSwipeMotion(null)
+              }}
+            >
+              <CurrentCard
+                place={place}
+                current={data.current}
+                today={data.days[0]}
+                hours={data.hours}
+                precipLast24h={data.precipLast24h}
+                precipEvent={data.precipEvent}
+                units={units}
+                timezone={data.timezone}
+                isFavorite={isFavorite}
+                onToggleFavorite={toggleFavorite}
+                controls={
+                  <div className="forecast-controls">
+                    <div className="unit-toggle" role="group" aria-label="Temperature units">
+                      {Object.values(UNIT_PRESETS).map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          className={preset.id === unitId ? 'is-active' : ''}
+                          aria-pressed={preset.id === unitId}
+                          onClick={() => setUnitId(preset.id)}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="refresh" onClick={load} title="Refresh">
+                      <span aria-hidden="true">↻</span>
+                      <span className="visually-hidden">Refresh forecast</span>
+                    </button>
                   </div>
-                  <button type="button" className="refresh" onClick={load} title="Refresh">
-                    <span aria-hidden="true">↻</span>
-                    <span className="visually-hidden">Refresh forecast</span>
-                  </button>
-                </div>
-              }
-            />
-            <Forecast days={data.days} units={units} place={place} />
+                }
+              />
+              <Forecast days={data.days} units={units} place={place} />
+            </div>
           </div>
         ) : null}
 

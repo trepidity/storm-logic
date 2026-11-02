@@ -587,6 +587,95 @@ a {
   gap: 14px;
 }
 
+/* Swipe between saved locations (mobile, 2+ saved). The indicator is a quiet
+   position cue — dots plus "n of N" — sitting just above the current card.
+   The stage holds the card and forecast and carries the slide/fade cue:
+   it follows the finger slightly while dragging, eases out while the swiped-to
+   forecast loads, then slides in from the swipe direction. */
+.panelgroup--swipeable {
+  gap: 8px;
+}
+
+.swipe-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 18px;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.swipe-indicator__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swipe-indicator__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--stroke);
+  transition: width 220ms var(--ease), background-color 220ms var(--ease);
+}
+
+.swipe-indicator__dot.is-active {
+  width: 16px;
+  background: var(--accent);
+}
+
+.swipe-stage {
+  transition: transform 200ms var(--ease), opacity 200ms var(--ease);
+}
+
+[data-swipe-dragging] > .swipe-stage {
+  transform: translateX(var(--swipe-dx, 0));
+  transition: none;
+}
+
+.swipe-stage--leave-next,
+.swipe-stage--leave-previous {
+  opacity: 0.55;
+}
+
+.swipe-stage--leave-next { transform: translateX(-18px); }
+.swipe-stage--leave-previous { transform: translateX(18px); }
+
+.swipe-stage--enter-next { animation: swipe-enter-next 260ms var(--ease); }
+.swipe-stage--enter-previous { animation: swipe-enter-previous 260ms var(--ease); }
+
+@keyframes swipe-enter-next {
+  from { transform: translateX(24px); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes swipe-enter-previous {
+  from { transform: translateX(-24px); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+
+/* Reduced motion: no sliding at all, just the brief fade. */
+@media (prefers-reduced-motion: reduce) {
+  .swipe-stage,
+  [data-swipe-dragging] > .swipe-stage,
+  .swipe-stage--leave-next,
+  .swipe-stage--leave-previous {
+    transform: none;
+  }
+
+  .swipe-stage--enter-next,
+  .swipe-stage--enter-previous {
+    animation-name: swipe-fade-in;
+  }
+
+  @keyframes swipe-fade-in {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+  }
+}
+
 /* Below this the header row is genuinely full; the wordmark is the least
    useful thing on it, so the icon carries the brand alone. */
 @media (max-width: 900px) {
